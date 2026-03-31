@@ -25,7 +25,7 @@ import areaChartIcon from '../../assets/icons/area_chart.svg'
       <div class="telemetry-item">
         <div class="item-label">
           <Icon :src="clockIcon" :width="24" />
-          <span>Trav. Time</span>
+          <span>Traverse Time</span>
         </div>
         <div class="item-value">120.5 s</div>
       </div>
@@ -54,6 +54,7 @@ import areaChartIcon from '../../assets/icons/area_chart.svg'
 .sidebar-header {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -99,5 +100,6 @@ import areaChartIcon from '../../assets/icons/area_chart.svg'
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
   text-shadow: 0 0 10px var(--accent-glow);
+  text-align: right;
 }
 </style>

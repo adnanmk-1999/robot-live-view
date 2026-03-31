@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { Maximize2, Layers } from 'lucide-vue-next'
+import IconButton from '../components/button/IconButton.vue'
+import layersIcon from '../assets/icons/layers.svg'
+import maximizeIcon from '../assets/icons/maximize.svg'
 </script>
 
 <template>
   <div class="live-view-container">
     <div class="view-overlay-controls top-right">
-      <button class="overlay-btn" title="Toggle Layers">
-        <Layers :size="18" />
-      </button>
-      <button class="overlay-btn" title="Fullscreen">
-        <Maximize2 :size="18" />
-      </button>
+      <IconButton :src="layersIcon" :width="18" title="Toggle Layers" variant="primary" />
+      <IconButton :src="maximizeIcon" :width="18" title="Fullscreen" variant="primary" />
     </div>
     
     <div class="canvas-placeholder">
@@ -44,27 +42,6 @@ import { Maximize2, Layers } from 'lucide-vue-next'
 .top-right {
   top: 0;
   right: 0;
-}
-
-.overlay-btn {
-  background-color: rgba(11, 14, 20, 0.7);
-  backdrop-filter: blur(4px);
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
-  width: 36px;
-  height: 36px;
-  border-radius: var(--border-radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.overlay-btn:hover {
-  background-color: rgba(21, 27, 40, 0.9);
-  color: var(--text-primary);
-  border-color: var(--text-muted);
 }
 
 .canvas-placeholder {
