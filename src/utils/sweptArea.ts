@@ -26,20 +26,18 @@ export interface SweptAreaResult {
  */
 const computeHeadings = (path: Point2D[]): number[] => {
   const headings: number[] = []
+  if (path.length < 2) return path.map(() => 0)
 
   for (let i = 0; i < path.length; i++) {
     let dx: number, dy: number
 
     if (i === 0) {
-      // Forward difference for start point
       dx = path[1][0] - path[0][0]
       dy = path[1][1] - path[0][1]
     } else if (i === path.length - 1) {
-      // Backward difference for end point
       dx = path[i][0] - path[i - 1][0]
       dy = path[i][1] - path[i - 1][1]
     } else {
-      // Central difference for interior points to reduce noise influence
       dx = path[i + 1][0] - path[i - 1][0]
       dy = path[i + 1][1] - path[i - 1][1]
     }
@@ -52,12 +50,6 @@ const computeHeadings = (path: Point2D[]): number[] => {
 
 /**
  * Transforms a robot-local coordinate to world coordinates given a specific pose.
- * 
- * @param local - Point in robot's local coordinate system [x, y]
- * @param px - Robot's world X position
- * @param py - Robot's world Y position
- * @param theta - Robot's rotation (heading) in radians
- * @returns Transformed world coordinate [x, y]
  */
 const transformPoint = (
   local: Point2D,
@@ -74,11 +66,7 @@ const transformPoint = (
 }
 
 /**
- * Calculates the signed area of a closed polygon ring using the Shoelace formula.
- * Used for metric (x, y) coordinates where Turf.js's WGS84 area calculation is inappropriate.
- * 
- * @param ring - Array of positions forming a closed ring (last point must equal first).
- * @returns Area in square meters.
+ * Calculates the metric area of a closed polygon ring using the Shoelace formula.
  */
 const shoelaceArea = (ring: Position[]): number => {
   let area = 0
@@ -91,93 +79,90 @@ const shoelaceArea = (ring: Position[]): number => {
 }
 
 /**
- * Extracts the metric area and coordinate rings from a GeoJSON Feature.
- * 
- * @param feature - A Turf/GeoJSON Polygon or MultiPolygon.
- * @returns SweptAreaResult containing total area and perimeter paths.
+ * Extracts result metrics from a GeoJSON feature collection.
  */
 const extractResult = (
   feature: Feature<Polygon | MultiPolygon>
 ): SweptAreaResult => {
   const geom = feature.geometry
   const boundaryRings: Point2D[][] = []
-  let areaSqMeters = 0
+  let totalArea = 0
 
   if (geom.type === 'Polygon') {
     const outerRing = geom.coordinates[0]
-    areaSqMeters = shoelaceArea(outerRing)
-    // Map GeoJSON Position back to our typed Point2D, dropping the duplicated end-point
-    boundaryRings.push(
-      outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D)
-    )
+    totalArea = shoelaceArea(outerRing)
+    boundaryRings.push(outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D))
   } else if (geom.type === 'MultiPolygon') {
-    // Accumulate area and rings from all sub-polygons
     for (const poly of geom.coordinates) {
       const outerRing = poly[0]
-      areaSqMeters += shoelaceArea(outerRing)
-      boundaryRings.push(
-        outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D)
-      )
+      totalArea += shoelaceArea(outerRing)
+      boundaryRings.push(outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D))
     }
   }
 
-  return { areaSqMeters, boundaryRings }
+  return { areaSqMeters: totalArea, boundaryRings }
 }
 
 /**
- * Calculates the total area covered by the robot's footprint as it follows the path.
+ * Calculates the total area swept by the robot's CLEANING PAD as it moves along the path.
  * 
  * Algorithm:
- * 1. Interpolate headings at each waypoint.
- * 2. At each waypoint, transform the robot polygon into world frame.
- * 3. Use Turf.js union to merge overlapping footprints into a single geometry.
- * 4. Compute metric area using shoelace formula on the resulting union.
+ * 1. Center the cleaning pad on the robot's centroid (COM).
+ * 2. Connect the pad's endpoints at consecutive poses to form a quadrilateral.
+ * 3. Union all quadrilaterals into a single swept area geometry.
  * 
- * @param path - World-frame [x, y] waypoints in metres.
- * @param robotPolygon - Robot hull vertices in local base-link coordinates.
- * @returns Area in m² and the outer boundary rings.
+ * @param path - World-frame [x, y] waypoints.
+ * @param robotHull - Robot hull vertices for centroid calculation.
+ * @param cleaningPad - Pair of points defining the tool's width in local coordinates.
  */
 export const calculateSweptArea = (
   path: Point2D[],
-  robotPolygon: Point2D[]
+  robotHull: Point2D[],
+  cleaningPad: Point2D[]
 ): SweptAreaResult => {
   const empty: SweptAreaResult = { areaSqMeters: 0, boundaryRings: [] }
-  if (path.length < 2 || robotPolygon.length < 3) return empty
+  if (path.length < 2 || cleaningPad.length < 2) return empty
 
   const headings = computeHeadings(path)
   let unionPolygon: Feature<Polygon | MultiPolygon> | null = null
 
-  // Calculate Centroid of robot hull to align it with the path as COM
+  // 1. Calculate Centroid (COM) relative offset
   let cx = 0, cy = 0
-  robotPolygon.forEach(p => { cx += p[0]; cy += p[1] })
-  cx /= robotPolygon.length; cy /= robotPolygon.length
+  robotHull.forEach(p => { cx += p[0]; cy += p[1] })
+  cx /= (robotHull.length || 1); cy /= (robotHull.length || 1)
   
-  // Create an offset-adjusted hull
-  const centeredHull = robotPolygon.map(p => [p[0] - cx, p[1] - cy] as Point2D)
+  const centeredPad = cleaningPad.map(p => [p[0] - cx, p[1] - cy] as Point2D)
 
-  // Iterate through waypoints and accumulate the footprint union
-  for (let i = 0; i < path.length; i++) {
-    const [px, py] = path[i]
-    const theta = headings[i]
+  // 2. Iterate path and capture the sweep of the pad between steps
+  for (let i = 0; i < path.length - 1; i++) {
+    const [x1, y1] = path[i]
+    const [x2, y2] = path[i + 1]
+    const theta1 = headings[i]
+    const theta2 = headings[i + 1]
 
-    // Rotate and translate centered hull to this pose
-    const worldPoints = centeredHull.map(p => transformPoint(p, px, py, theta))
-    
-    // Turf requires the first and last points of a ring to be identical
-    const closedRing: Position[] = [...worldPoints, worldPoints[0]].map(
-      ([x, y]) => [x, y] as Position
-    )
+    // Pad endpoints at start pose
+    const p1 = transformPoint(centeredPad[0], x1, y1, theta1)
+    const p2 = transformPoint(centeredPad[1], x1, y1, theta1)
+    // Pad endpoints at end pose
+    const p3 = transformPoint(centeredPad[1], x2, y2, theta2)
+    const p4 = transformPoint(centeredPad[0], x2, y2, theta2)
 
-    const footprint = turf.polygon([closedRing])
+    // Form a quad of this segment's swept ribbon
+    const quad: Position[] = [
+      [p1[0], p1[1]], [p2[0], p2[1]], [p3[0], p3[1]], [p4[0], p4[1]], [p1[0], p1[1]]
+    ]
 
-    if (unionPolygon === null) {
-      unionPolygon = footprint
-    } else {
-      // Boolean Union operation to merge current footprint into the total swept surface
-      const merged = turf.union(
-        turf.featureCollection([unionPolygon, footprint])
-      ) as Feature<Polygon | MultiPolygon> | null
-      if (merged) unionPolygon = merged
+    try {
+      const segmentPoly = turf.polygon([quad])
+      if (!unionPolygon) {
+        unionPolygon = segmentPoly
+      } else {
+        const merged = turf.union(turf.featureCollection([unionPolygon, segmentPoly])) as Feature<Polygon | MultiPolygon> | null
+        if (merged) unionPolygon = merged
+      }
+    } catch (e) {
+      // Skip degenerate polygons or invalid quads
+      console.warn("Swept Area: Degenerate segment encountered. Skipping...", e)
     }
   }
 

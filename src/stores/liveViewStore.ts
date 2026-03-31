@@ -80,7 +80,11 @@ export const useLiveViewStore = () => {
     // Metric Computation 
     state.metrics.euclideanPathLengthMeters = calculatePathLength(telemetryStore.path.value)
 
-    const sweptResult = calculateSweptArea(telemetryStore.path.value, telemetryStore.robot.value)
+    const sweptResult = calculateSweptArea(
+      telemetryStore.path.value,
+      telemetryStore.robot.value,
+      telemetryStore.cleaningGadget.value
+    )
     state.metrics.cleanedAreaSqMeters = sweptResult.areaSqMeters
     state.metrics.sweptBoundaryRings = sweptResult.boundaryRings
 
