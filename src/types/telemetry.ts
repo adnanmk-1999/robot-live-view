@@ -20,4 +20,6 @@ export interface TelemetryMetrics {
   cleanedAreaSqMeters: number;
   traversalTimeSeconds: number;
   sweptBoundaryRings: Point2D[][];
+  velocityProfile: number[];   // per-segment velocity [m/s]
+  curvatures: number[];        // per-point curvature  [1/m]
 }

@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 import type { TelemetryData, TelemetryMetrics, PlaybackState } from '../types/telemetry'
 import { calculatePathLength } from '../utils/euclideanDistance'
 import { calculateSweptArea } from '../utils/sweptArea'
+import { calculateTraversalTime } from '../utils/traversalTime'
 import { telemetryStore } from './telemetryStore'
 
 interface LiveViewState {
@@ -17,7 +18,9 @@ const state = reactive<LiveViewState>({
     pathLengthMeters: 0,
     cleanedAreaSqMeters: 0,
     traversalTimeSeconds: 0,
-    sweptBoundaryRings: []
+    sweptBoundaryRings: [],
+    velocityProfile: [],
+    curvatures: []
   },
   playback: {
     isPlaying: false,
@@ -51,6 +54,13 @@ export const useLiveViewStore = () => {
     state.metrics.cleanedAreaSqMeters = sweptResult.areaSqMeters
     state.metrics.sweptBoundaryRings = sweptResult.boundaryRings
     console.log(`Swept area: ${sweptResult.areaSqMeters.toFixed(4)} m², rings: ${sweptResult.boundaryRings.length}`)
+
+    // Compute traversal time with curvature-based velocity model
+    const traversalResult = calculateTraversalTime(telemetryStore.path.value)
+    state.metrics.traversalTimeSeconds = traversalResult.totalTimeSeconds
+    state.metrics.velocityProfile = traversalResult.velocityProfile
+    state.metrics.curvatures = traversalResult.curvatures
+    console.log(`Traversal time: ${traversalResult.totalTimeSeconds.toFixed(2)} s`)
   }
 
   const setMetrics = (length: number, area: number, time: number) => {
