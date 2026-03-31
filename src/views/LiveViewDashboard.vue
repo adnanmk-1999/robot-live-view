@@ -25,7 +25,7 @@ import maximizeIcon from '../assets/icons/maximize.svg'
 
 import { telemetryStore } from '../stores/telemetryStore'
 import { liveViewStore } from '../stores/liveViewStore'
-import { toVector3, getPathCenter } from '../utils/threeUtils'
+import { toVector3, getPathCenter, lerpPoint } from '../utils/threeUtils'
 
 // ── UI State ────────────────────────────────────────────────────────────────
 
@@ -43,6 +43,12 @@ const hoverCoords = reactive({
   x: 0,
   y: 0,
   active: false
+})
+
+const robotPose = reactive({
+  x: 0,
+  y: 0,
+  heading: 0
 })
 
 // ── Three.js Core Instances ────────────────────────────────────────────────
@@ -99,15 +105,39 @@ const getCurvatureColorHSL = (kappa: number): THREE.Color => {
 
 const calculateHeading = (path: any[], index: number): number => {
   if (path.length < 2) return 0
-  let dx: number, dy: number
-  if (index === path.length - 1) {
-    dx = path[index][0] - path[index - 1][0]
-    dy = path[index][1] - path[index - 1][1]
-  } else {
-    dx = path[index + 1][0] - path[index][0]
-    dy = path[index + 1][1] - path[index][1]
+  const i = Math.max(0, Math.min(index, path.length - 2))
+
+  // Walk forward until we find a segment long enough to be meaningful
+  const MIN_SEGMENT_LENGTH = 0.005 // 5mm threshold
+  for (let k = i; k < path.length - 1; k++) {
+    const dx = path[k + 1][0] - path[k][0]
+    const dy = path[k + 1][1] - path[k][1]
+    if (Math.sqrt(dx * dx + dy * dy) >= MIN_SEGMENT_LENGTH) {
+      return Math.atan2(dy, dx)
+    }
   }
-  return Math.atan2(dy, dx)
+
+  // Fallback: look backward
+  for (let k = i; k > 0; k--) {
+    const dx = path[k][0] - path[k - 1][0]
+    const dy = path[k][1] - path[k - 1][1]
+    if (Math.sqrt(dx * dx + dy * dy) >= MIN_SEGMENT_LENGTH) {
+      return Math.atan2(dy, dx)
+    }
+  }
+
+  return 0
+}
+
+
+/**
+ * Shortest-path angle interpolation to prevent 'spinning' when wrapping around +/- PI.
+ */
+const lerpAngle = (start: number, end: number, t: number): number => {
+  let diff = end - start
+  while (diff > Math.PI) diff -= Math.PI * 2
+  while (diff < -Math.PI) diff += Math.PI * 2
+  return start + diff * t
 }
 
 const updateRobotModel = () => {
@@ -115,7 +145,7 @@ const updateRobotModel = () => {
   if (!layers.showRobot || telemetryStore.robot.value.length < 3) return
 
   const hull = telemetryStore.robot.value
-  
+
   // 1. Calculate Centroid (Geometric Center)
   let cx = 0, cy = 0
   hull.forEach(p => { cx += p[0]; cy += p[1] })
@@ -150,12 +180,12 @@ const updateRobotModel = () => {
     const angle = Math.atan2(dy, dx)
 
     const barGeom = new THREE.PlaneGeometry(length, 0.08)
-    const barMesh = new THREE.Mesh(barGeom, new THREE.MeshPhongMaterial({ 
+    const barMesh = new THREE.Mesh(barGeom, new THREE.MeshPhongMaterial({
       color: 0xfbc02d,  // Safety Yellow
       emissive: 0xfbc02d,
       emissiveIntensity: 0.2
     }))
-    
+
     const midX = (p1[0] + p2[0]) / 2 - cx
     const midY = (p1[1] + p2[1]) / 2 - cy
     barMesh.position.set(midX, 0.08, -midY) // Raised to 0.08m
@@ -172,23 +202,51 @@ const updateRobotModel = () => {
 }
 
 const updateRobotPose = () => {
-  const path = telemetryStore.path.value
-  if (path.length === 0) return
+  const path = liveViewStore.state.metrics.smoothedPath
+  const ts = liveViewStore.state.metrics.waypointTimestamps
+  if (path.length < 2 || ts.length < 2) return
+
+  const time = liveViewStore.state.playback.currentTime
   const index = liveViewStore.state.playback.currentPathIndex
-  const pt = path[index]
-  const heading = calculateHeading(path, index)
-  robotGroup.position.copy(toVector3(pt, 0.02))
-  robotGroup.rotation.y = heading
+
+  // 1. Calculate interpolation factor 't' between waypoints
+  let t = 0
+  const nextIndex = Math.min(index + 1, path.length - 1)
+  if (index < path.length - 1) {
+    const t0 = ts[index]
+    const t1 = ts[nextIndex]
+    const dt = t1 - t0
+    if (dt > 1e-6) {
+      t = Math.max(0, Math.min(1, (time - t0) / dt))
+    }
+  }
+
+  // 2. Interpolate Position
+  const p1 = path[index]
+  const p2 = path[nextIndex]
+  const interpPt = lerpPoint(p1, p2, t)
+  robotGroup.position.copy(toVector3(interpPt, 0.02))
+
+  // 3. Interpolate Rotation (Angle Lerp)
+  const h1 = calculateHeading(path, index)
+  const h2 = calculateHeading(path, nextIndex)
+  const finalHeading = lerpAngle(h1, h2, t)
+  robotGroup.rotation.y = finalHeading
+
+  // 4. Update UI State
+  robotPose.x = interpPt[0]
+  robotPose.y = interpPt[1]
+  robotPose.heading = (finalHeading * 180) / Math.PI
 }
 
 const updateGeometry = () => {
-  const path = telemetryStore.path.value
+  const path = liveViewStore.state.metrics.smoothedPath
   const metrics = liveViewStore.state.metrics
-  
+
   pathGroup.clear()
   areaGroup.clear()
   pointsGroup.clear()
-  
+
   if (path.length === 0) return
 
   // Grid visibility
@@ -250,7 +308,7 @@ const initThree = () => {
   renderer.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
   renderer.setPixelRatio(window.devicePixelRatio)
   containerRef.value.appendChild(renderer.domElement)
-  
+
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
 
@@ -261,7 +319,7 @@ const initThree = () => {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5)
   directionalLight.position.set(10, 20, 10)
   scene.add(directionalLight)
-  
+
   scene.add(pathGroup, areaGroup, pointsGroup, robotGroup)
   animate()
   updateGeometry()
@@ -282,7 +340,7 @@ onUnmounted(() => {
   renderer?.dispose()
 })
 
-watch(() => telemetryStore.path.value, () => updateGeometry(), { deep: true })
+watch(() => liveViewStore.state.metrics.smoothedPath, () => updateGeometry(), { deep: true })
 watch(() => liveViewStore.state.playback.currentPathIndex, () => updateRobotPose())
 watch(() => layers, () => updateGeometry(), { deep: true })
 
@@ -308,16 +366,37 @@ watch(() => layers, () => updateGeometry(), { deep: true })
       <IconButton :src="maximizeIcon" :width="18" title="Fullscreen" variant="primary" />
     </div>
 
-    <!-- ── Coordinate Meter (Hover HUD) ── -->
-    <div v-if="hoverCoords.active && liveViewStore.state.isLoaded" class="coordinate-meter">
-      <div class="meter-item">
-        <span class="meter-label">X</span>
-        <span class="meter-value">{{ hoverCoords.x.toFixed(2) }}<small>m</small></span>
+    <!-- ── Coordinate Meters (HUDs) ── -->
+    <div class="hud-layer">
+      <!-- Cursor Position -->
+      <div v-if="hoverCoords.active && liveViewStore.state.isLoaded" class="coordinate-meter cursor-meter">
+        <div class="meter-item">
+          <span class="meter-label">Pointer X</span>
+          <span class="meter-value">{{ hoverCoords.x.toFixed(2) }}<small>m</small></span>
+        </div>
+        <div class="meter-divider"></div>
+        <div class="meter-item">
+          <span class="meter-label">Pointer Y</span>
+          <span class="meter-value">{{ hoverCoords.y.toFixed(2) }}<small>m</small></span>
+        </div>
       </div>
-      <div class="meter-divider"></div>
-      <div class="meter-item">
-        <span class="meter-label">Y</span>
-        <span class="meter-value">{{ hoverCoords.y.toFixed(2) }}<small>m</small></span>
+
+      <!-- Robot Pose -->
+      <div v-if="liveViewStore.state.isLoaded" class="coordinate-meter robot-meter">
+        <div class="meter-item">
+          <span class="meter-label">Robot X</span>
+          <span class="meter-value">{{ robotPose.x.toFixed(2) }}<small>m</small></span>
+        </div>
+        <div class="meter-divider"></div>
+        <div class="meter-item">
+          <span class="meter-label">Robot Y</span>
+          <span class="meter-value">{{ robotPose.y.toFixed(2) }}<small>m</small></span>
+        </div>
+        <div class="meter-divider"></div>
+        <div class="meter-item">
+          <span class="meter-label">Heading</span>
+          <span class="meter-value">{{ robotPose.heading.toFixed(1) }}<small>°</small></span>
+        </div>
       </div>
     </div>
 
@@ -345,9 +424,9 @@ watch(() => layers, () => updateGeometry(), { deep: true })
 
     <!-- ── Contextual HUD ── -->
     <div v-if="liveViewStore.state.isLoaded" class="navigation-hint">
-       <div><strong>Left:</strong> Rotate</div>
-       <div><strong>Right:</strong> Pan</div>
-       <div><strong>Scroll:</strong> Zoom</div>
+      <div><strong>Left:</strong> Rotate</div>
+      <div><strong>Right:</strong> Pan</div>
+      <div><strong>Scroll:</strong> Zoom</div>
     </div>
 
     <div v-if="!liveViewStore.state.isLoaded" class="placeholder-overlay">
@@ -391,10 +470,18 @@ watch(() => layers, () => updateGeometry(), { deep: true })
   gap: 0.5rem;
 }
 
-.coordinate-meter {
+.hud-layer {
   position: absolute;
   top: 1.5rem;
   left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.coordinate-meter {
   background: rgba(11, 14, 20, 0.7);
   backdrop-filter: blur(10px);
   padding: 0.6rem 1rem;
@@ -405,8 +492,16 @@ watch(() => layers, () => updateGeometry(), { deep: true })
   gap: 1rem;
   font-family: var(--font-mono);
   box-shadow: var(--shadow-lg);
-  pointer-events: none;
-  z-index: 100;
+}
+
+.cursor-meter {
+  background: rgba(0, 200, 255, 0.1);
+  border-color: rgba(0, 200, 255, 0.2);
+}
+
+.robot-meter {
+  background: rgba(230, 126, 34, 0.1);
+  border-color: rgba(230, 126, 34, 0.2);
 }
 
 .meter-item {
@@ -499,10 +594,22 @@ watch(() => layers, () => updateGeometry(), { deep: true })
   flex-shrink: 0;
 }
 
-.color-swatch.robot { background-color: #e67e22; }
-.color-swatch.path { background-color: #444444; }
-.color-swatch.area { background-color: rgba(0, 200, 255, 0.5); border: 1px solid #00c8ff; }
-.color-swatch.tool { background-color: #fbc02d; }
+.color-swatch.robot {
+  background-color: #e67e22;
+}
+
+.color-swatch.path {
+  background-color: #444444;
+}
+
+.color-swatch.area {
+  background-color: rgba(0, 200, 255, 0.5);
+  border: 1px solid #00c8ff;
+}
+
+.color-swatch.tool {
+  background-color: #fbc02d;
+}
 
 .curvature-legend {
   position: absolute;

@@ -40,6 +40,8 @@ export interface PlaybackState {
  * Derived analytical metrics computed from the raw telemetry.
  */
 export interface TelemetryMetrics {
+  /** Sequential array of waypoints representing the robot's target path. */
+  smoothedPath: Point2D[];
   /** Total path length calculated by summing straight-line segments. */
   euclideanPathLengthMeters: number;
   /** Path length (reserved for smoothed/spline-based calculations). */

@@ -24,14 +24,13 @@ export const smoothPathMetric = (path: Point2D[], windowSize: number = 3): Point
     let sumY = 0
     let count = 0
 
-    // Apply a simple symmetric window
+    // Boundary Handling: Use clamping (padding) instead of skipping
+    // This prevents the 'pulling' effect towards the interior at boundaries
     for (let j = -halfWindow; j <= halfWindow; j++) {
-      const idx = i + j
-      if (idx >= 0 && idx < path.length) {
-        sumX += path[idx][0]
-        sumY += path[idx][1]
-        count++
-      }
+      const idx = Math.max(0, Math.min(path.length - 1, i + j))
+      sumX += path[idx][0]
+      sumY += path[idx][1]
+      count++
     }
 
     smoothed.push([sumX / count, sumY / count])
@@ -58,4 +57,22 @@ export const bSplinePath = (path: Point2D[]): Point2D[] => {
    }
    smoothed.push(path[path.length - 1])
    return smoothed
+}
+
+/**
+ * Removes consecutive duplicate/near-duplicate points that cause
+ * undefined heading angles during animation.
+ */
+export const deduplicatePath = (path: Point2D[], minDist: number = 0.005): Point2D[] => {
+  if (path.length === 0) return []
+  const result: Point2D[] = [path[0]]
+  for (let i = 1; i < path.length; i++) {
+    const prev = result[result.length - 1]
+    const dx = path[i][0] - prev[0]
+    const dy = path[i][1] - prev[1]
+    if (Math.sqrt(dx * dx + dy * dy) >= minDist) {
+      result.push(path[i])
+    }
+  }
+  return result
 }

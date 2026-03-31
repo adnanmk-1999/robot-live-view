@@ -43,3 +43,18 @@ export const getPathCenter = (points: Point2D[]): THREE.Vector3 => {
     -((minY + maxY) / 2) // Flip Y to Z
   )
 }
+
+/**
+ * Linearly interpolates between two 2D points.
+ * 
+ * @param p1 - Start point [x, y]
+ * @param p2 - End point [x, y]
+ * @param t - Interpolation factor [0, 1]
+ * @returns Interpolated point [x, y]
+ */
+export const lerpPoint = (p1: Point2D, p2: Point2D, t: number): Point2D => {
+  return [
+    p1[0] + (p2[0] - p1[0]) * t,
+    p1[1] + (p2[1] - p1[1]) * t
+  ]
+}
