@@ -51,6 +51,8 @@ export interface TraversalResult {
   velocityProfile: number[]
   /** Curvature computed for each waypoint. Length = path.length. */
   curvatures: number[]
+  /** Cumulative traversal time at each waypoint. Length = path.length. */
+  waypointTimestamps: number[]
 }
 
 /**
@@ -65,12 +67,14 @@ export interface TraversalResult {
  * @returns TraversalResult with timing and velocity details.
  */
 export const calculateTraversalTime = (path: Point2D[]): TraversalResult => {
-  const empty: TraversalResult = { totalTimeSeconds: 0, velocityProfile: [], curvatures: [] }
+  const empty: TraversalResult = { totalTimeSeconds: 0, velocityProfile: [], curvatures: [], waypointTimestamps: [] }
   if (path.length < 2) return empty
 
   // Calculate per-point curvatures first
   const curvatures = computeCurvatures(path)
   const velocityProfile: number[] = []
+  // Track cumulative time starting at 0s for the first point
+  const waypointTimestamps: number[] = [0]
   let totalTimeSeconds = 0
 
   // Integrate segment times along the path
@@ -83,9 +87,12 @@ export const calculateTraversalTime = (path: Point2D[]): TraversalResult => {
 
     velocityProfile.push(v)
     
-    // Accumulate traversal time
-    if (v > 0) totalTimeSeconds += segLen / v
+    // Increment total time and store waypoint timestamp
+    if (v > 0) {
+      totalTimeSeconds += segLen / v
+    }
+    waypointTimestamps.push(totalTimeSeconds)
   }
 
-  return { totalTimeSeconds, velocityProfile, curvatures }
+  return { totalTimeSeconds, velocityProfile, curvatures, waypointTimestamps }
 }

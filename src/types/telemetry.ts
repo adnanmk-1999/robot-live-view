@@ -54,4 +54,6 @@ export interface TelemetryMetrics {
   velocityProfile: number[];
   /** Array of curvature values mapped to each path waypoint [1/m]. */
   curvatures: number[];
+  /** Cumulative timestamps at each path waypoint [s]. */
+  waypointTimestamps: number[];
 }

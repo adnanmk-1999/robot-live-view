@@ -30,7 +30,8 @@ const state = reactive<LiveViewState>({
     traversalTimeSeconds: 0,
     sweptBoundaryRings: [],
     velocityProfile: [],
-    curvatures: []
+    curvatures: [],
+    waypointTimestamps: []
   },
   playback: {
     isPlaying: false,
@@ -46,97 +47,132 @@ const state = reactive<LiveViewState>({
  */
 export const useLiveViewStore = () => {
   
+  let animationFrameId: number | null = null
+  let lastTickTime = 0
+
+  /**
+   * Internal find function: Maps current time to the path index.
+   * Finds the highest index i such that timestamps[i] <= time.
+   */
+  const findPathIndex = (timeSec: number): number => {
+    const ts = state.metrics.waypointTimestamps
+    if (!ts.length) return 0
+    
+    // Simple linear scan for now; small enough datasets (100-1000 pts)
+    for (let i = ts.length - 1; i >= 0; i--) {
+      if (ts[i] <= timeSec) return i
+    }
+    return 0
+  }
+
   /**
    * Action: Primary ingestion pipeline.
-   * 1. Loads raw data into the telemetryStore.
-   * 2. Resets playback state.
-   * 3. Triggers synchronous computation of all derived metrics (Length, Area, Time).
    */
   const loadTelemetry = (jsonData: TelemetryData) => {
-    // Delegate source-of-truth storage to telemetryStore
     telemetryStore.load(jsonData)
 
-    // Reset playback to start
     state.isLoaded = true
     state.playback.currentTime = 0
     state.playback.currentPathIndex = 0
     state.playback.progressPercentage = 0
     state.playback.isPlaying = false
 
-    // ── Metric Computation Pipeline ─────────────────────────────────────────
-
-    // Calculate Euclidean Path Length
+    // Metric Computation 
     state.metrics.euclideanPathLengthMeters = calculatePathLength(telemetryStore.path.value)
-    console.log(`Path length: ${state.metrics.euclideanPathLengthMeters.toFixed(3)} m`)
 
-    // Calculate Swept Area (includes Boolean Union of all footprints)
-    const sweptResult = calculateSweptArea(
-      telemetryStore.path.value,
-      telemetryStore.robot.value
-    )
+    const sweptResult = calculateSweptArea(telemetryStore.path.value, telemetryStore.robot.value)
     state.metrics.cleanedAreaSqMeters = sweptResult.areaSqMeters
     state.metrics.sweptBoundaryRings = sweptResult.boundaryRings
-    console.log(`Swept area: ${sweptResult.areaSqMeters.toFixed(4)} m², rings: ${sweptResult.boundaryRings.length}`)
 
-    // Calculate Traversal Time using the piecewise velocity model
     const traversalResult = calculateTraversalTime(telemetryStore.path.value)
     state.metrics.traversalTimeSeconds = traversalResult.totalTimeSeconds
     state.metrics.velocityProfile = traversalResult.velocityProfile
     state.metrics.curvatures = traversalResult.curvatures
-    console.log(`Traversal time: ${traversalResult.totalTimeSeconds.toFixed(2)} s`)
+    state.metrics.waypointTimestamps = traversalResult.waypointTimestamps
   }
 
-  /** action: Legacy manual metric override (kept for debugging). */
-  const setMetrics = (length: number, area: number, time: number) => {
-    state.metrics.euclideanPathLengthMeters = length
-    state.metrics.pathLengthMeters = length
-    state.metrics.cleanedAreaSqMeters = area
-    state.metrics.traversalTimeSeconds = time
+  /**
+   * Core Animation Loop.
+   */
+  const tick = (now: number) => {
+    if (!state.playback.isPlaying) {
+      lastTickTime = 0
+      return
+    }
+
+    if (!lastTickTime) {
+      lastTickTime = now
+      animationFrameId = requestAnimationFrame(tick)
+      return
+    }
+
+    const delta = (now - lastTickTime) / 1000 // ms to s
+    lastTickTime = now
+
+    const newTime = state.playback.currentTime + delta * state.playback.speedMultiplier
+    updateProgress(newTime)
+
+    if (state.playback.isPlaying) {
+      animationFrameId = requestAnimationFrame(tick)
+    }
   }
 
   /** Action: Toggles playback between playing and paused. */
   const togglePlayback = () => {
     if (!state.isLoaded) return
     state.playback.isPlaying = !state.playback.isPlaying
+    
+    if (state.playback.isPlaying) {
+      // If we are at the end, restart
+      if (state.playback.currentTime >= state.metrics.traversalTimeSeconds) {
+        state.playback.currentTime = 0
+      }
+      lastTickTime = 0
+      animationFrameId = requestAnimationFrame(tick)
+    } else {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
+    }
   }
 
-  /** Action: Sets the playback speed factor (e.g., 0.5, 1.0, 2.0). */
+  /** Action: Sets the playback speed factor. */
   const setPlaybackSpeed = (multiplier: number) => {
     state.playback.speedMultiplier = multiplier
   }
 
   /**
-   * Action: Updates current playback time and calculates corresponding percentage.
-   * Should be called from a requestAnimationFrame loop or timeline scrubber.
+   * Action: Updates current playback time, percentage, and currentPathIndex.
    * 
    * @param timeSec - The new virtual time in seconds.
    */
   const updateProgress = (timeSec: number) => {
     if (!state.isLoaded || state.metrics.traversalTimeSeconds === 0) return
 
-    // Clamp time to [0, totalDuration]
     const clampedTime = Math.max(0, Math.min(timeSec, state.metrics.traversalTimeSeconds))
     state.playback.currentTime = clampedTime
     state.playback.progressPercentage = (clampedTime / state.metrics.traversalTimeSeconds) * 100
+    
+    // Sync the path index for visualization
+    state.playback.currentPathIndex = findPathIndex(clampedTime)
 
     // Force stop if we reach the end
     if (clampedTime >= state.metrics.traversalTimeSeconds && state.playback.isPlaying) {
       state.playback.isPlaying = false
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
     }
   }
 
-  /** Action: Resets playback to zero without purging the telemetry data. */
+  /** Action: Resets playback to zero. */
   const resetPlayback = () => {
+    state.playback.isPlaying = false
+    if (animationFrameId) cancelAnimationFrame(animationFrameId)
     state.playback.currentTime = 0
     state.playback.progressPercentage = 0
     state.playback.currentPathIndex = 0
-    state.playback.isPlaying = false
   }
 
   return {
     state,
     loadTelemetry,
-    setMetrics,
     togglePlayback,
     setPlaybackSpeed,
     updateProgress,
@@ -144,8 +180,4 @@ export const useLiveViewStore = () => {
   }
 }
 
-/**
- * Live View Store Singleton Export.
- * Ensures all components share the same reactive instance for metrics and playback.
- */
 export const liveViewStore = useLiveViewStore()
