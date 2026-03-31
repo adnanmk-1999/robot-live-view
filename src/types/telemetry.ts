@@ -19,4 +19,5 @@ export interface TelemetryMetrics {
   pathLengthMeters: number;
   cleanedAreaSqMeters: number;
   traversalTimeSeconds: number;
+  sweptBoundaryRings: Point2D[][];
 }

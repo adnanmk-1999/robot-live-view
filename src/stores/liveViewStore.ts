@@ -16,7 +16,8 @@ const state = reactive<LiveViewState>({
     euclideanPathLengthMeters: 0,
     pathLengthMeters: 0,
     cleanedAreaSqMeters: 0,
-    traversalTimeSeconds: 0
+    traversalTimeSeconds: 0,
+    sweptBoundaryRings: []
   },
   playback: {
     isPlaying: false,
@@ -42,12 +43,14 @@ export const useLiveViewStore = () => {
     state.metrics.euclideanPathLengthMeters = calculatePathLength(telemetryStore.path.value)
     console.log(`Path length: ${state.metrics.euclideanPathLengthMeters.toFixed(3)} m`)
 
-    // Compute swept area
-    state.metrics.cleanedAreaSqMeters = calculateSweptArea(
+    // Compute swept area and extract boundary rings
+    const sweptResult = calculateSweptArea(
       telemetryStore.path.value,
       telemetryStore.robot.value
     )
-    console.log(`Swept area: ${state.metrics.cleanedAreaSqMeters.toFixed(4)} m²`)
+    state.metrics.cleanedAreaSqMeters = sweptResult.areaSqMeters
+    state.metrics.sweptBoundaryRings = sweptResult.boundaryRings
+    console.log(`Swept area: ${sweptResult.areaSqMeters.toFixed(4)} m², rings: ${sweptResult.boundaryRings.length}`)
   }
 
   const setMetrics = (length: number, area: number, time: number) => {

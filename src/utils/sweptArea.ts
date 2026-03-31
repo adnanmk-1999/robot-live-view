@@ -2,11 +2,16 @@ import * as turf from '@turf/turf'
 import type { Feature, Polygon, MultiPolygon, Position } from 'geojson'
 import type { Point2D } from '../types/telemetry'
 
+export interface SweptAreaResult {
+  /** Total swept area in m² (overlapping regions counted once) */
+  areaSqMeters: number
+  /** Outer boundary ring(s) of the unified swept polygon in world coordinates */
+  boundaryRings: Point2D[][]
+}
+
 /**
  * Computes the heading angle (radians) at each path point.
- * - Forward difference at index 0
- * - Backward difference at the last index
- * - Central difference for all intermediate points
+ * Uses central differences for interior points, forward/backward for endpoints.
  */
 const computeHeadings = (path: Point2D[]): number[] => {
   const headings: number[] = []
@@ -32,8 +37,7 @@ const computeHeadings = (path: Point2D[]): number[] => {
 }
 
 /**
- * Transforms a robot-local point to world coordinates
- * given the robot pose (px, py, theta).
+ * Transforms a robot-local point to world coordinates given pose (px, py, theta).
  */
 const transformPoint = (
   local: Point2D,
@@ -50,8 +54,7 @@ const transformPoint = (
 }
 
 /**
- * Shoelace formula for the signed area of a closed polygon ring.
- * Coordinates must be in metric units — result is in m².
+ * Shoelace formula for area of a closed polygon ring in metric coordinates (m²).
  */
 const shoelaceArea = (ring: Position[]): number => {
   let area = 0
@@ -64,40 +67,50 @@ const shoelaceArea = (ring: Position[]): number => {
 }
 
 /**
- * Computes area of a GeoJSON Polygon or MultiPolygon feature
- * using the shoelace formula on metric (x, y) coordinates.
+ * Extracts area and boundary rings from a Polygon or MultiPolygon feature.
+ * Each ring is the outer boundary of one polygon region (holes excluded).
  */
-const computeAreaMetric = (
+const extractResult = (
   feature: Feature<Polygon | MultiPolygon>
-): number => {
+): SweptAreaResult => {
   const geom = feature.geometry
+  const boundaryRings: Point2D[][] = []
+  let areaSqMeters = 0
 
   if (geom.type === 'Polygon') {
-    return shoelaceArea(geom.coordinates[0])
+    const outerRing = geom.coordinates[0]
+    areaSqMeters = shoelaceArea(outerRing)
+    // Drop the closing duplicate point from the ring
+    boundaryRings.push(
+      outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D)
+    )
+  } else if (geom.type === 'MultiPolygon') {
+    for (const poly of geom.coordinates) {
+      const outerRing = poly[0]
+      areaSqMeters += shoelaceArea(outerRing)
+      boundaryRings.push(
+        outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D)
+      )
+    }
   }
 
-  if (geom.type === 'MultiPolygon') {
-    return geom.coordinates.reduce((total: number, poly: Position[][]) => {
-      return total + shoelaceArea(poly[0])
-    }, 0)
-  }
-
-  return 0
+  return { areaSqMeters, boundaryRings }
 }
 
 /**
- * Calculates the total swept area covered by the robot polygon
- * as it follows the given path. Overlapping regions are counted only once.
+ * Calculates the total swept area and boundary polygon(s) of the robot
+ * as it traverses the given path. Overlapping regions are counted only once.
  *
- * @param path          - Array of [x, y] waypoints in metres
+ * @param path          - World-frame [x, y] waypoints in metres
  * @param robotPolygon  - Robot hull vertices in local base-link coordinates
- * @returns             Total swept area in m²
+ * @returns             Area in m² and the outer boundary ring(s)
  */
 export const calculateSweptArea = (
   path: Point2D[],
   robotPolygon: Point2D[]
-): number => {
-  if (path.length < 2 || robotPolygon.length < 3) return 0
+): SweptAreaResult => {
+  const empty: SweptAreaResult = { areaSqMeters: 0, boundaryRings: [] }
+  if (path.length < 2 || robotPolygon.length < 3) return empty
 
   const headings = computeHeadings(path)
   let unionPolygon: Feature<Polygon | MultiPolygon> | null = null
@@ -106,10 +119,7 @@ export const calculateSweptArea = (
     const [px, py] = path[i]
     const theta = headings[i]
 
-    // Transform robot polygon to world frame at this pose
     const worldPoints = robotPolygon.map(p => transformPoint(p, px, py, theta))
-
-    // Close the ring (GeoJSON requirement: first === last)
     const closedRing: Position[] = [...worldPoints, worldPoints[0]].map(
       ([x, y]) => [x, y] as Position
     )
@@ -126,5 +136,5 @@ export const calculateSweptArea = (
     }
   }
 
-  return unionPolygon ? computeAreaMetric(unionPolygon) : 0
+  return unionPolygon ? extractResult(unionPolygon) : empty
 }
