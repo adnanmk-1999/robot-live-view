@@ -1,0 +1,21 @@
+export type Point2D = [number, number];
+
+export interface TelemetryData {
+  path: Point2D[];
+  robot: Point2D[];
+  cleaning_gadget: Point2D[];
+}
+
+export interface PlaybackState {
+  isPlaying: boolean;
+  speedMultiplier: number;
+  currentTime: number;
+  progressPercentage: number;
+  currentPathIndex: number;
+}
+
+export interface TelemetryMetrics {
+  pathLengthMeters: number;
+  cleanedAreaSqMeters: number;
+  traversalTimeSeconds: number;
+}
