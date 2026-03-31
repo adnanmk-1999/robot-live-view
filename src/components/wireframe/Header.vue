@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Upload } from 'lucide-vue-next'
+import Icon from '../Icons/Icon.vue'
+import uploadIcon from '../../assets/icons/upload.svg'
 </script>
 
 <template>
@@ -11,7 +12,7 @@ import { Upload } from 'lucide-vue-next'
 
     <div class="header-actions">
       <router-link to="/upload" class="action-btn primary" title="Upload Data">
-        <Upload :size="16" />
+        <Icon :src="uploadIcon" :width="16" />
         <span>Upload Path Data</span>
       </router-link>
     </div>
@@ -57,6 +58,11 @@ import { Upload } from 'lucide-vue-next'
 .header-actions {
   display: flex;
   gap: 1rem;
+}
+
+
+.action-btn:hover .custom-icon {
+  transform: scale(1.1);
 }
 
 .action-btn {

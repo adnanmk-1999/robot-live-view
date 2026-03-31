@@ -5,13 +5,14 @@
   --surface-light: #1b2130;
   --surface-hover: #232c40;
   --surface-dark: #06080b;
-  
+
   --text-primary: #f0f4f8;
   --text-muted: #8b9bb4;
-  
+
   --border-color: #2a3447;
-  
-  --accent-color: #3b82f6; /* Electric Blue */
+
+  --accent-color: #7e57c2;
+  /* Electric Blue */
   --accent-glow: rgba(59, 130, 246, 0.5);
   --accent-hover: #60a5fa;
 
@@ -27,7 +28,7 @@
   --header-height: 64px;
   --sidebar-width: 280px;
   --footer-height: 64px;
-  
+
   /* Borders */
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
@@ -42,10 +43,13 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; /* Prevent body scroll, layout handles it */
+  overflow: hidden;
+  /* Prevent body scroll, layout handles it */
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 

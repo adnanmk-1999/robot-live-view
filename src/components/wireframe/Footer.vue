@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import { Play, Pause, Square } from 'lucide-vue-next'
+import IconButton from '../button/IconButton.vue'
+import playIcon from '../../assets/icons/play.svg'
+import pauseIcon from '../../assets/icons/pause.svg'
+import squareIcon from '../../assets/icons/square.svg'
 </script>
 
 <template>
   <footer class="footer">
     <div class="playback-controls">
-      <button class="control-btn play" title="Play">
-        <Play :size="18" fill="currentColor" />
-      </button>
-      <button class="control-btn" title="Pause">
-        <Pause :size="18" fill="currentColor" />
-      </button>
-      <button class="control-btn" title="Stop">
-        <Square :size="14" fill="currentColor" />
-      </button>
+      <IconButton :src="playIcon" :width="18" title="Play" variant="play" />
+      <IconButton :src="pauseIcon" :width="18" title="Pause" />
+      <IconButton :src="squareIcon" :width="14" title="Stop" />
     </div>
 
     <div class="timeline-container">
@@ -46,32 +43,6 @@ import { Play, Pause, Square } from 'lucide-vue-next'
   gap: 0.5rem;
 }
 
-.control-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.control-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.control-btn.play {
-  background: var(--surface-light);
-  color: var(--accent-color);
-}
-.control-btn.play:hover {
-  background: var(--accent-glow);
-}
 
 .timeline-container {
   flex-grow: 1;

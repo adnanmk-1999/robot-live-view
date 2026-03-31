@@ -1,18 +1,22 @@
 <script setup lang="ts">
-import { Activity, Clock, LocateFixed, AreaChart } from 'lucide-vue-next'
+import Icon from '../Icons/Icon.vue'
+import activityIcon from '../../assets/icons/activity.svg'
+import pathIcon from '../../assets/icons/path.svg'
+import clockIcon from '../../assets/icons/clock.svg'
+import areaChartIcon from '../../assets/icons/area_chart.svg'
 </script>
 
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <Activity :size="16" class="header-icon" />
+      <Icon :src="activityIcon" :width="16" lineColor="var(--accent-color)" />
       <h2>TELEMETRY</h2>
     </div>
 
     <div class="telemetry-list">
       <div class="telemetry-item">
         <div class="item-label">
-          <LocateFixed :size="14" class="item-icon" />
+          <Icon :src="pathIcon" :width="14" />
           <span>Path Length</span>
         </div>
         <div class="item-value">54.20 m</div>
@@ -20,7 +24,7 @@ import { Activity, Clock, LocateFixed, AreaChart } from 'lucide-vue-next'
 
       <div class="telemetry-item">
         <div class="item-label">
-          <Clock :size="14" class="item-icon" />
+          <Icon :src="clockIcon" :width="14" />
           <span>Trav. Time</span>
         </div>
         <div class="item-value">120.5 s</div>
@@ -28,7 +32,7 @@ import { Activity, Clock, LocateFixed, AreaChart } from 'lucide-vue-next'
 
       <div class="telemetry-item">
         <div class="item-label">
-          <AreaChart :size="14" class="item-icon" />
+          <Icon :src="areaChartIcon" :width="14" />
           <span>Cleaned Area</span>
         </div>
         <div class="item-value">15.3 m²</div>
@@ -56,9 +60,6 @@ import { Activity, Clock, LocateFixed, AreaChart } from 'lucide-vue-next'
   letter-spacing: 1px;
 }
 
-.header-icon {
-  color: var(--accent-color);
-}
 
 .sidebar-header h2 {
   font-size: 0.85rem;
@@ -87,7 +88,7 @@ import { Activity, Clock, LocateFixed, AreaChart } from 'lucide-vue-next'
   font-weight: 500;
 }
 
-.item-icon {
+.item-label .custom-icon {
   opacity: 0.7;
 }
 

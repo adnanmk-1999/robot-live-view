@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { UploadCloud } from 'lucide-vue-next'
+import PrimaryButton from '../components/button/PrimaryButton.vue'
 </script>
 
 <template>
   <div class="upload-view">
     <div class="upload-container">
       <div class="upload-box">
-        <UploadCloud :size="48" class="upload-icon" />
+        <img src="../assets/icons/upload.svg" class="upload-icon" alt="Upload" />
         <h2>Upload Telemetry Data</h2>
         <p>Drag and drop your robot log files here, or click to browse.</p>
-        <button class="browse-btn">Browse Files</button>
+        <PrimaryButton>Browse Files</PrimaryButton>
       </div>
     </div>
   </div>
@@ -49,12 +49,14 @@ import { UploadCloud } from 'lucide-vue-next'
 }
 
 .upload-icon {
-  color: var(--text-muted);
+  width: 48px;
+  height: 48px;
   margin-bottom: 1rem;
+  transition: transform 0.3s ease;
 }
 
 .upload-box:hover .upload-icon {
-  color: var(--accent-color);
+  transform: scale(1.05);
 }
 
 .upload-box h2 {
@@ -68,19 +70,4 @@ import { UploadCloud } from 'lucide-vue-next'
   margin: 0 0 1.5rem 0;
 }
 
-.browse-btn {
-  background-color: var(--accent-color);
-  color: #fff;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: var(--border-radius-md);
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.browse-btn:hover {
-  opacity: 0.9;
-}
 </style>
