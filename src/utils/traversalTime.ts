@@ -1,98 +1,126 @@
 /**
  * @file traversalTime.ts
- * @description Curvature-based velocity profiling and total traversal time estimation.
+ * @description Advanced Kinematic Velocity Profiling with Acceleration Look-ahead.
+ * Handles high-speed straights and smooth deceleration for sharp curves.
  */
 
 import type { Point2D } from '../types/telemetry'
 import { distance } from './euclideanDistance'
 import { computeCurvatures } from './curvature'
 
-// ── Kinematic constants from the problem specification ───────────────────────
-
-/** Curvature [1/m] above which the robot must begin slowing down. */
-const K_CRIT = 0.5;
-
-/** Maximum curvature [1/m] at which minimum speed is reached. */
-const K_MAX  = 10.0;
-
-/** Minimum robot speed [m/s] used in sharp turns. */
-const V_MIN  = 0.15;
-
-/** Maximum robot speed [m/s] used on straights or flat curves. */
-const V_MAX  = 1.1;
+import { ROBOT_CONFIG } from '../config/robotConfig'
 
 /** Pre-calculated slope for the piecewise linear velocity model. */
-const SLOPE = (V_MAX - V_MIN) / (K_MAX - K_CRIT);
+const SLOPE = (ROBOT_CONFIG.V_MAX - ROBOT_CONFIG.V_MIN) / (ROBOT_CONFIG.K_MAX - ROBOT_CONFIG.K_CRIT)
 
 /**
- * Maps a curvature value κ [1/m] to a robot velocity [m/s].
- * 
- * Logic:
- * - κ < K_CRIT: Use V_MAX (full speed)
- * - K_CRIT <= κ < K_MAX: Linearly interpolate between V_MAX and V_MIN
- * - κ >= K_MAX: Use V_MIN (crawl speed)
- * 
- * @param kappa - Path curvature in 1/m.
- * @returns Computed velocity in m/s.
+ * Maps curvature κ to a baseline target velocity based on road/track geometry.
  */
-export const velocityFromCurvature = (kappa: number): number => {
-  if (kappa < K_CRIT) return V_MAX
-  if (kappa >= K_MAX) return V_MIN
-  return V_MAX - SLOPE * (kappa - K_CRIT)
+const targetVelocityFromCurvature = (kappa: number): number => {
+  // 1. Piecewise Linear Model (Legacy Constraint)
+  let v: number = ROBOT_CONFIG.V_MAX
+  if (kappa >= ROBOT_CONFIG.K_MAX) v = ROBOT_CONFIG.V_MIN
+  else if (kappa >= ROBOT_CONFIG.K_CRIT) v = ROBOT_CONFIG.V_MAX - SLOPE * (kappa - ROBOT_CONFIG.K_CRIT)
+  
+  // 2. Physical Angular Constraint: v <= omega_max / kappa
+  const vOmega = Math.max(ROBOT_CONFIG.V_MIN, ROBOT_CONFIG.OMEGA_MAX / (kappa || 1e-6))
+  
+  return Math.min(v, vOmega)
 }
 
 /**
  * Encapsulates the results of a time-velocity profile calculation.
  */
 export interface TraversalResult {
-  /** Aggregated time to complete the entire path in seconds. */
   totalTimeSeconds: number
-  /** Velocity computed for each segment [i -> i+1]. Length = path.length - 1. */
   velocityProfile: number[]
-  /** Curvature computed for each waypoint. Length = path.length. */
   curvatures: number[]
-  /** Cumulative traversal time at each waypoint. Length = path.length. */
   waypointTimestamps: number[]
 }
 
 /**
- * Estimates the total traversal time using a piecewise velocity-curvature model.
+ * Estimates total traversal time using a TWO-PASS Kinematic Optimizer.
+ * Respects linear acceleration, angular velocity, and angular acceleration limits.
+ * 
+ * Algorithm:
+ * 1. Compute target velocities based on local curvature.
+ * 2. Forward Pass: Clamp velocity v[i+1] such that a < A_MAX AND alpha < ALPHA_MAX relative to v[i].
+ * 3. Backward Pass: Clamp velocity v[i] similarly to ensure safely reaching v[i+1].
  *
- * For each sequential path segment:
- * 1. Calculate the average curvature using the segment's endpoints.
- * 2. Determine segment velocity via the velocity-curvature mapping.
- * 3. Segment time = segment_distance / velocity.
- *
- * @param path - Array of robot waypoints [x, y].
- * @returns TraversalResult with timing and velocity details.
+ * @param path - Smoothed waypoints [x, y].
+ * @returns Kinematically smoothed performance profile.
  */
 export const calculateTraversalTime = (path: Point2D[]): TraversalResult => {
   const empty: TraversalResult = { totalTimeSeconds: 0, velocityProfile: [], curvatures: [], waypointTimestamps: [] }
   if (path.length < 2) return empty
 
-  // Calculate per-point curvatures first
+  const n = path.length
   const curvatures = computeCurvatures(path)
-  const velocityProfile: number[] = []
-  // Track cumulative time starting at 0s for the first point
-  const waypointTimestamps: number[] = [0]
-  let totalTimeSeconds = 0
-
-  // Integrate segment times along the path
-  for (let i = 0; i < path.length - 1; i++) {
-    const segLen = distance(path[i], path[i + 1])
-    
-    // Use average curvature for the segment to derive velocity
-    const kAvg = (curvatures[i] + curvatures[i + 1]) / 2
-    const v = velocityFromCurvature(kAvg)
-
-    velocityProfile.push(v)
-    
-    // Increment total time and store waypoint timestamp
-    if (v > 0) {
-      totalTimeSeconds += segLen / v
-    }
-    waypointTimestamps.push(totalTimeSeconds)
+  
+  // Distances between waypoints
+  const s: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    s.push(distance(path[i], path[i + 1]))
   }
 
-  return { totalTimeSeconds, velocityProfile, curvatures, waypointTimestamps }
+  // ── PASS 0: Raw Target Velocities ───────────────────────────────────────
+  const vTarget = curvatures.map(k => targetVelocityFromCurvature(k))
+
+  // ── PASS 1: Forward Pass (Acceleration + Alpha Constraint) ──────────────
+  const vFwd = new Array(n).fill(ROBOT_CONFIG.V_MIN)
+  vFwd[0] = ROBOT_CONFIG.V_MIN
+  for (let i = 0; i < n - 1; i++) {
+    const s_i = s[i] || 1e-6
+    const k_curr = curvatures[i]
+    const k_next = curvatures[i+1]
+
+    // (A) Linear Accel Limit: v_next^2 = v_curr^2 + 2 * a * s
+    const vMaxByLinear = Math.sqrt(vFwd[i] ** 2 + 2 * ROBOT_CONFIG.A_MAX * s_i)
+
+    // (B) Angular Accel Limit: |omega_next - omega_curr| / dt < alpha_max
+    const omega_curr = vFwd[i] * k_curr
+    const max_omega_next = omega_curr + (ROBOT_CONFIG.ALPHA_MAX * s_i / (vFwd[i] || 1e-6))
+    const vMaxByAlpha = k_next > 0 ? max_omega_next / k_next : ROBOT_CONFIG.V_MAX
+
+    vFwd[i + 1] = Math.min(vTarget[i + 1], vMaxByLinear, vMaxByAlpha)
+  }
+
+  // ── PASS 2: Backward Pass (Deceleration + Alpha Constraint) ────────────
+  const vFinal = [...vFwd]
+  vFinal[n - 1] = ROBOT_CONFIG.V_MIN
+  for (let i = n - 2; i >= 0; i--) {
+    const s_i = s[i] || 1e-6
+    const k_curr = curvatures[i]
+    const k_next = curvatures[i+1]
+
+    const vMaxByLinear = Math.sqrt(vFinal[i + 1] ** 2 + 2 * ROBOT_CONFIG.A_MAX * s_i)
+
+    const omega_next = vFinal[i + 1] * k_next
+    const max_omega_curr = omega_next + (ROBOT_CONFIG.ALPHA_MAX * s_i / (vFinal[i + 1] || 1e-6))
+    const vMaxByAlpha = k_curr > 0 ? max_omega_curr / k_curr : ROBOT_CONFIG.V_MAX
+
+    vFinal[i] = Math.min(vFinal[i], vMaxByLinear, vMaxByAlpha)
+  }
+
+  // ── PASS 3: Time Integration ─────────────────────────────────────────────
+  const waypointTimestamps: number[] = [0]
+  const velocityProfile: number[] = [] 
+  let totalTime = 0
+
+  for (let i = 0; i < n - 1; i++) {
+    // Use average velocity for the segment
+    const vAvg = (vFinal[i] + vFinal[i + 1]) / 2
+    const dt = s[i] / (vAvg || ROBOT_CONFIG.V_MIN)
+    
+    totalTime += dt
+    waypointTimestamps.push(totalTime)
+    velocityProfile.push(vAvg)
+  }
+
+  return { 
+    totalTimeSeconds: totalTime, 
+    velocityProfile, 
+    curvatures, 
+    waypointTimestamps 
+  }
 }

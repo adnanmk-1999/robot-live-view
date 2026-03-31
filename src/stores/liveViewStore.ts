@@ -9,6 +9,7 @@ import { calculatePathLength } from '../utils/euclideanDistance'
 import { calculateSweptArea } from '../utils/sweptArea'
 import { calculateTraversalTime } from '../utils/traversalTime'
 import { telemetryStore } from './telemetryStore'
+import { smoothPathMetric } from '../utils/pathSmoothing'
 
 /** Internal state definition for derived telemetry analysis. */
 interface LiveViewState {
@@ -69,7 +70,12 @@ export const useLiveViewStore = () => {
    * Action: Primary ingestion pipeline.
    */
   const loadTelemetry = (jsonData: TelemetryData) => {
+    // 1. Core Ingestion
     telemetryStore.load(jsonData)
+
+    // 2. Pre-process: Path Smoothing to remove high-frequency noise
+    // Using a window of 3 to remove jagged edges while preserving shape
+    const smoothedPath = smoothPathMetric(telemetryStore.path.value, 3)
 
     state.isLoaded = true
     state.playback.currentTime = 0
@@ -77,18 +83,18 @@ export const useLiveViewStore = () => {
     state.playback.progressPercentage = 0
     state.playback.isPlaying = false
 
-    // Metric Computation 
+    // 3. Metric Computation (using Smooth Data)
     state.metrics.euclideanPathLengthMeters = calculatePathLength(telemetryStore.path.value)
 
     const sweptResult = calculateSweptArea(
-      telemetryStore.path.value,
+      smoothedPath,
       telemetryStore.robot.value,
       telemetryStore.cleaningGadget.value
     )
     state.metrics.cleanedAreaSqMeters = sweptResult.areaSqMeters
     state.metrics.sweptBoundaryRings = sweptResult.boundaryRings
 
-    const traversalResult = calculateTraversalTime(telemetryStore.path.value)
+    const traversalResult = calculateTraversalTime(smoothedPath)
     state.metrics.traversalTimeSeconds = traversalResult.totalTimeSeconds
     state.metrics.velocityProfile = traversalResult.velocityProfile
     state.metrics.curvatures = traversalResult.curvatures
