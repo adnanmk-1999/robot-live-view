@@ -1,5 +1,15 @@
+<!--
+  PrimaryButton.vue — Accent-coloured call-to-action button
+
+  A simple slot-based button with the application's primary accent colour.
+  Handles hover, active press, and disabled states.
+
+  Usage:
+    <PrimaryButton @click="doSomething">Browse Files</PrimaryButton>
+    <PrimaryButton disabled>Unavailable</PrimaryButton>
+-->
 <script setup lang="ts">
-// PrimaryButton component
+// Intentionally prop-free; all content is provided via the default slot.
 </script>
 
 <template>

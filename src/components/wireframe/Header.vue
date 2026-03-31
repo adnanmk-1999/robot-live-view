@@ -1,3 +1,10 @@
+<!--
+  Header.vue — Top navigation bar
+
+  Persistent header rendered across all dashboard views. Contains:
+  - Logo / home link (RouterLink to '/')
+  - Header actions: "Upload Path Data" button (RouterLink to '/upload')
+-->
 <script setup lang="ts">
 import IconButton from '../button/IconButton.vue'
 import uploadIcon from '../../assets/icons/upload.svg'
@@ -5,25 +12,23 @@ import uploadIcon from '../../assets/icons/upload.svg'
 
 <template>
   <header class="header">
-    <router-link to="/" class="logo" title="Home">
+    <!-- Logo: home link with logo image and app name -->
+    <RouterLink to="/" class="logo" title="Home">
       <img src="../../assets/logo.png" alt="Logo" class="logo-image" />
       <h1 class="logo-text">Robot Live View</h1>
-    </router-link>
+    </RouterLink>
 
+    <!-- Right-side action buttons -->
     <div class="header-actions">
-      <IconButton 
-        to="/upload" 
-        :src="uploadIcon" 
-        :width="16" 
-        title="Upload Data" 
-        text="Upload Path Data" 
-        variant="primary" 
-      />
+      <!-- Upload button: primary variant, routes to /upload -->
+      <IconButton to="/upload" :src="uploadIcon" :width="16" title="Upload Data" text="Upload Path Data"
+        variant="primary" />
     </div>
   </header>
 </template>
 
 <style scoped>
+/* Horizontal flex bar spanning the full header grid area */
 .header {
   display: flex;
   align-items: center;
@@ -33,6 +38,7 @@ import uploadIcon from '../../assets/icons/upload.svg'
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Logo link: flex row with logo image + text, no underline */
 .logo {
   display: flex;
   align-items: center;
@@ -41,17 +47,18 @@ import uploadIcon from '../../assets/icons/upload.svg'
   color: var(--text-primary);
   transition: opacity 0.2s;
 }
-
 .logo:hover {
   opacity: 0.8;
 }
 
+/* Fixed-height logo mark */
 .logo-image {
   height: 32px;
   width: auto;
   object-fit: contain;
 }
 
+/* Application name text */
 .logo-text {
   font-size: 1.1rem;
   font-weight: 600;
@@ -59,13 +66,13 @@ import uploadIcon from '../../assets/icons/upload.svg'
   margin: 0;
 }
 
+/* Container for header action buttons (upload, future controls) */
 .header-actions {
   display: flex;
   gap: 1rem;
 }
 
-
-
+/* Monospace keyboard shortcut badge style (unused currently) */
 kbd {
   font-family: var(--font-mono);
   background: var(--surface-dark);
