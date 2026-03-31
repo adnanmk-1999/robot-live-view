@@ -22,12 +22,7 @@ const sizeStr = computed(() => {
 </script>
 
 <template>
-  <img 
-    :src="src" 
-    class="custom-icon" 
-    aria-hidden="true" 
-    alt="Icon"
-  />
+  <img :src="src" class="custom-icon" aria-hidden="true" alt="Icon" />
 </template>
 
 <style scoped>

@@ -30,13 +30,8 @@ defineProps({
 </script>
 
 <template>
-  <component 
-    :is="to ? 'router-link' : 'button'"
-    :to="to"
-    class="icon-btn" 
-    :class="[variant, { 'icon-only': src && !text }]"
-    :title="title || text"
-  >
+  <component :is="to ? 'RouterLink' : 'button'" :to="to" class="icon-btn"
+    :class="[variant, { 'icon-only': src && !text }]" :title="title || text">
     <Icon v-if="src" :src="src" :width="width" />
     <span v-if="text">{{ text }}</span>
   </component>
@@ -82,6 +77,7 @@ defineProps({
   color: var(--text-primary);
   border-color: var(--border-color);
 }
+
 .icon-btn.primary:hover {
   background-color: var(--surface-hover);
   border-color: var(--text-muted);

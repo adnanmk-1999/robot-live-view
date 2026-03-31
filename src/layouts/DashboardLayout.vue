@@ -9,7 +9,7 @@ import Footer from '../components/wireframe/Footer.vue'
     <Header class="dashboard-header" />
     <Sidebar class="dashboard-sidebar" />
     <main class="dashboard-main">
-      <router-view />
+      <RouterView />
     </main>
     <Footer class="dashboard-footer" />
   </div>
@@ -47,7 +47,7 @@ import Footer from '../components/wireframe/Footer.vue'
   overflow: hidden;
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius-lg) 0 0 0;
-  box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);
+  box-shadow: inset 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .dashboard-footer {

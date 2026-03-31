@@ -14,6 +14,11 @@ const pathLength = computed(() => {
   return val > 0 ? `${val.toFixed(2)} m` : '-- m'
 })
 
+const traversalTime = computed(() => {
+  const val = liveViewStore.state.metrics.traversalTimeSeconds
+  return val > 0 ? `${val.toFixed(2)} s` : '-- s'
+})
+
 const cleanedArea = computed(() => {
   const val = liveViewStore.state.metrics.cleanedAreaSqMeters
   return val > 0 ? `${val.toFixed(2)} m²` : '-- m²'
@@ -43,7 +48,7 @@ const dataPoints = computed(() => telemetryStore.path.value)
           <Icon :src="clockIcon" :width="24" />
           <span>Traverse Time</span>
         </div>
-        <div class="item-value">120.5 s</div>
+        <div class="item-value">{{ traversalTime }}</div>
       </div>
 
       <div class="telemetry-item">

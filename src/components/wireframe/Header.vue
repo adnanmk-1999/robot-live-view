@@ -5,20 +5,14 @@ import uploadIcon from '../../assets/icons/upload.svg'
 
 <template>
   <header class="header">
-    <router-link to="/" class="logo" title="Home">
+    <RouterLink to="/" class="logo" title="Home">
       <img src="../../assets/logo.png" alt="Logo" class="logo-image" />
       <h1 class="logo-text">Robot Live View</h1>
-    </router-link>
+    </RouterLink>
 
     <div class="header-actions">
-      <IconButton 
-        to="/upload" 
-        :src="uploadIcon" 
-        :width="16" 
-        title="Upload Data" 
-        text="Upload Path Data" 
-        variant="primary" 
-      />
+      <IconButton to="/upload" :src="uploadIcon" :width="16" title="Upload Data" text="Upload Path Data"
+        variant="primary" />
     </div>
   </header>
 </template>

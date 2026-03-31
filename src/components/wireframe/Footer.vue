@@ -85,7 +85,7 @@ import squareIcon from '../../assets/icons/square.svg'
   background-color: #fff;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
 
