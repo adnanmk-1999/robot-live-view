@@ -464,13 +464,13 @@ watch(() => layers.showLegend, () => updateGeometry())
       <div><strong>Scroll:</strong> Zoom</div>
     </div>
 
+    <!-- Empty State Overlay -->
     <div v-if="!liveViewStore.state.isLoaded" class="placeholder-overlay">
       <div class="placeholder-content">
         <h3>[ 3D ENGINE READY ]</h3>
         <p>Telemetry required for interactive visualization.</p>
       </div>
     </div>
-
   </div>
 </template>
 
