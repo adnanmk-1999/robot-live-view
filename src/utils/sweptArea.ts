@@ -1,17 +1,28 @@
+/**
+ * @file sweptArea.ts
+ * @description Coordinate transformation and geometric union logic to calculate total cleaned area.
+ */
+
 import * as turf from '@turf/turf'
 import type { Feature, Polygon, MultiPolygon, Position } from 'geojson'
 import type { Point2D } from '../types/telemetry'
 
+/**
+ * Result of the swept area calculation.
+ */
 export interface SweptAreaResult {
-  /** Total swept area in m² (overlapping regions counted once) */
+  /** Total swept area in m² (overlapping regions counted once). */
   areaSqMeters: number
-  /** Outer boundary ring(s) of the unified swept polygon in world coordinates */
+  /** Outer boundary ring(s) of the unified swept polygon in world coordinates. */
   boundaryRings: Point2D[][]
 }
 
 /**
- * Computes the heading angle (radians) at each path point.
+ * Computes the heading angle (radians) at each path point based on the next/previous waypoint.
  * Uses central differences for interior points, forward/backward for endpoints.
+ * 
+ * @param path - Array of waypoints [x, y]
+ * @returns Array of heading angles in radians.
  */
 const computeHeadings = (path: Point2D[]): number[] => {
   const headings: number[] = []
@@ -20,12 +31,15 @@ const computeHeadings = (path: Point2D[]): number[] => {
     let dx: number, dy: number
 
     if (i === 0) {
+      // Forward difference for start point
       dx = path[1][0] - path[0][0]
       dy = path[1][1] - path[0][1]
     } else if (i === path.length - 1) {
+      // Backward difference for end point
       dx = path[i][0] - path[i - 1][0]
       dy = path[i][1] - path[i - 1][1]
     } else {
+      // Central difference for interior points to reduce noise influence
       dx = path[i + 1][0] - path[i - 1][0]
       dy = path[i + 1][1] - path[i - 1][1]
     }
@@ -37,7 +51,13 @@ const computeHeadings = (path: Point2D[]): number[] => {
 }
 
 /**
- * Transforms a robot-local point to world coordinates given pose (px, py, theta).
+ * Transforms a robot-local coordinate to world coordinates given a specific pose.
+ * 
+ * @param local - Point in robot's local coordinate system [x, y]
+ * @param px - Robot's world X position
+ * @param py - Robot's world Y position
+ * @param theta - Robot's rotation (heading) in radians
+ * @returns Transformed world coordinate [x, y]
  */
 const transformPoint = (
   local: Point2D,
@@ -54,7 +74,11 @@ const transformPoint = (
 }
 
 /**
- * Shoelace formula for area of a closed polygon ring in metric coordinates (m²).
+ * Calculates the signed area of a closed polygon ring using the Shoelace formula.
+ * Used for metric (x, y) coordinates where Turf.js's WGS84 area calculation is inappropriate.
+ * 
+ * @param ring - Array of positions forming a closed ring (last point must equal first).
+ * @returns Area in square meters.
  */
 const shoelaceArea = (ring: Position[]): number => {
   let area = 0
@@ -67,8 +91,10 @@ const shoelaceArea = (ring: Position[]): number => {
 }
 
 /**
- * Extracts area and boundary rings from a Polygon or MultiPolygon feature.
- * Each ring is the outer boundary of one polygon region (holes excluded).
+ * Extracts the metric area and coordinate rings from a GeoJSON Feature.
+ * 
+ * @param feature - A Turf/GeoJSON Polygon or MultiPolygon.
+ * @returns SweptAreaResult containing total area and perimeter paths.
  */
 const extractResult = (
   feature: Feature<Polygon | MultiPolygon>
@@ -80,11 +106,12 @@ const extractResult = (
   if (geom.type === 'Polygon') {
     const outerRing = geom.coordinates[0]
     areaSqMeters = shoelaceArea(outerRing)
-    // Drop the closing duplicate point from the ring
+    // Map GeoJSON Position back to our typed Point2D, dropping the duplicated end-point
     boundaryRings.push(
       outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D)
     )
   } else if (geom.type === 'MultiPolygon') {
+    // Accumulate area and rings from all sub-polygons
     for (const poly of geom.coordinates) {
       const outerRing = poly[0]
       areaSqMeters += shoelaceArea(outerRing)
@@ -98,12 +125,17 @@ const extractResult = (
 }
 
 /**
- * Calculates the total swept area and boundary polygon(s) of the robot
- * as it traverses the given path. Overlapping regions are counted only once.
- *
- * @param path          - World-frame [x, y] waypoints in metres
- * @param robotPolygon  - Robot hull vertices in local base-link coordinates
- * @returns             Area in m² and the outer boundary ring(s)
+ * Calculates the total area covered by the robot's footprint as it follows the path.
+ * 
+ * Algorithm:
+ * 1. Interpolate headings at each waypoint.
+ * 2. At each waypoint, transform the robot polygon into world frame.
+ * 3. Use Turf.js union to merge overlapping footprints into a single geometry.
+ * 4. Compute metric area using shoelace formula on the resulting union.
+ * 
+ * @param path - World-frame [x, y] waypoints in metres.
+ * @param robotPolygon - Robot hull vertices in local base-link coordinates.
+ * @returns Area in m² and the outer boundary rings.
  */
 export const calculateSweptArea = (
   path: Point2D[],
@@ -115,11 +147,15 @@ export const calculateSweptArea = (
   const headings = computeHeadings(path)
   let unionPolygon: Feature<Polygon | MultiPolygon> | null = null
 
+  // Iterate through waypoints and accumulate the footprint union
   for (let i = 0; i < path.length; i++) {
     const [px, py] = path[i]
     const theta = headings[i]
 
+    // Rotate and translate robot hull to this pose
     const worldPoints = robotPolygon.map(p => transformPoint(p, px, py, theta))
+    
+    // Turf requires the first and last points of a ring to be identical
     const closedRing: Position[] = [...worldPoints, worldPoints[0]].map(
       ([x, y]) => [x, y] as Position
     )
@@ -129,6 +165,7 @@ export const calculateSweptArea = (
     if (unionPolygon === null) {
       unionPolygon = footprint
     } else {
+      // Boolean Union operation to merge current footprint into the total swept surface
       const merged = turf.union(
         turf.featureCollection([unionPolygon, footprint])
       ) as Feature<Polygon | MultiPolygon> | null

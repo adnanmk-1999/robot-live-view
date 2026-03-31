@@ -1,7 +1,18 @@
+/**
+ * @file euclideanDistance.ts
+ * @description Path length and point distance utilities using Euclidean geometry.
+ */
+
 import type { Point2D } from '../types/telemetry'
 
 /**
  * Calculates the Euclidean distance between two 2D points.
+ * 
+ * Formula: sqrt((x2 - x1)^2 + (y2 - y1)^2)
+ * 
+ * @param a - First point [x, y]
+ * @param b - Second point [x, y]
+ * @returns The distance in meters.
  */
 export const distance = (a: Point2D, b: Point2D): number => {
   const dx = b[0] - a[0]
@@ -12,7 +23,10 @@ export const distance = (a: Point2D, b: Point2D): number => {
 /**
  * Calculates the total path length by accumulating Euclidean
  * distances between consecutive waypoints.
- * @returns Total length in meters (same unit as the input coordinates)
+ * 
+ * @param path - Array of waypoints [x, y]
+ * @returns Total length in meters (same unit as the input coordinates).
+ *          Returns 0 if the path has fewer than 2 points.
  */
 export const calculatePathLength = (path: Point2D[]): number => {
   if (path.length < 2) return 0
