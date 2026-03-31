@@ -23,6 +23,7 @@ import dataPointsIcon from '../assets/icons/data_points.svg'
 import robotIcon from '../assets/logo.png'
 import maximizeIcon from '../assets/icons/maximize.svg'
 import collapseIcon from '../assets/icons/collapse.svg'
+import closeIcon from '../assets/icons/close.svg'
 
 import { telemetryStore } from '../stores/telemetryStore'
 import { liveViewStore } from '../stores/liveViewStore'
@@ -447,7 +448,7 @@ watch(() => layers.showLegend, () => updateGeometry())
     <div v-if="liveViewStore.state.isLoaded && layers.showLegend" class="curvature-legend">
       <div class="legend-header">
         <span>Curvature (3D)</span>
-        <button @click="layers.showLegend = false" class="close-legend">×</button>
+        <IconButton :src="closeIcon" :width="16" title="Close" @click="layers.showLegend = false" variant="primary" />
       </div>
       <div class="gradient-bar"></div>
       <div class="legend-labels">
