@@ -147,13 +147,21 @@ export const calculateSweptArea = (
   const headings = computeHeadings(path)
   let unionPolygon: Feature<Polygon | MultiPolygon> | null = null
 
+  // Calculate Centroid of robot hull to align it with the path as COM
+  let cx = 0, cy = 0
+  robotPolygon.forEach(p => { cx += p[0]; cy += p[1] })
+  cx /= robotPolygon.length; cy /= robotPolygon.length
+  
+  // Create an offset-adjusted hull
+  const centeredHull = robotPolygon.map(p => [p[0] - cx, p[1] - cy] as Point2D)
+
   // Iterate through waypoints and accumulate the footprint union
   for (let i = 0; i < path.length; i++) {
     const [px, py] = path[i]
     const theta = headings[i]
 
-    // Rotate and translate robot hull to this pose
-    const worldPoints = robotPolygon.map(p => transformPoint(p, px, py, theta))
+    // Rotate and translate centered hull to this pose
+    const worldPoints = centeredHull.map(p => transformPoint(p, px, py, theta))
     
     // Turf requires the first and last points of a ring to be identical
     const closedRing: Position[] = [...worldPoints, worldPoints[0]].map(

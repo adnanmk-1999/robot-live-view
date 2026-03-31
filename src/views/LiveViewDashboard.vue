@@ -3,17 +3,26 @@
 
   Features:
     - 3D Rotation, Panning, and Zooming (OrbitControls)
+    - Layer Toggles: Area, Path, Points, Robot, Grid
     - Curvature-coded trajectory waypoints
     - Translucent Swept Area (cleaned surface)
-    - 3D Robot Avatar positioned at the current telemetry pose
+    - 3D Robot Avatar with decorative cleaning gadget
+    - Real-time Hover Coordinate Tracking (Raycasting)
 -->
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, reactive } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import IconButton from '../components/button/IconButton.vue'
+
+// Icons
 import layersIcon from '../assets/icons/layers.svg'
+import areaChartIcon from '../assets/icons/area_chart.svg'
+import pathIcon from '../assets/icons/path.svg'
+import dataPointsIcon from '../assets/icons/data_points.svg'
+import robotIcon from '../assets/logo.png'
 import maximizeIcon from '../assets/icons/maximize.svg'
+
 import { telemetryStore } from '../stores/telemetryStore'
 import { liveViewStore } from '../stores/liveViewStore'
 import { toVector3, getPathCenter } from '../utils/threeUtils'
@@ -26,7 +35,14 @@ const layers = reactive({
   showPath: true,
   showPoints: true,
   showRobot: true,
+  showGrid: true,
   showLegend: true
+})
+
+const hoverCoords = reactive({
+  x: 0,
+  y: 0,
+  active: false
 })
 
 // ── Three.js Core Instances ────────────────────────────────────────────────
@@ -35,7 +51,14 @@ let scene: THREE.Scene
 let camera: THREE.PerspectiveCamera
 let renderer: THREE.WebGLRenderer
 let controls: OrbitControls
+let gridHelper: THREE.GridHelper
 let animationFrameId: number | null = null
+
+// Raycasting utilities
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+const groundPoint = new THREE.Vector3()
 
 // Group holders for dynamic content
 let pathGroup = new THREE.Group()
@@ -43,17 +66,37 @@ let areaGroup = new THREE.Group()
 let pointsGroup = new THREE.Group()
 let robotGroup = new THREE.Group()
 
+// ── Event Handlers ─────────────────────────────────────────────────────────
+
+const onMouseMove = (event: MouseEvent) => {
+  if (!containerRef.value || !camera) return
+
+  // Calculate mouse position in normalized device coordinates (-1 to +1)
+  const rect = containerRef.value.getBoundingClientRect()
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+  // Project ray from camera
+  raycaster.setFromCamera(mouse, camera)
+
+  // Intersection with ground plane (Y=0)
+  if (raycaster.ray.intersectPlane(groundPlane, groundPoint)) {
+    hoverCoords.x = groundPoint.x
+    hoverCoords.y = -groundPoint.z // Invert Z to match Telemetry Y
+    hoverCoords.active = true
+  } else {
+    hoverCoords.active = false
+  }
+}
+
 // ── Rendering Helpers ──────────────────────────────────────────────────────
 
 const getCurvatureColorHSL = (kappa: number): THREE.Color => {
-  const K_MAX = 10.0 
+  const K_MAX = 10.0
   const ratio = Math.min(kappa / K_MAX, 1.0)
   return new THREE.Color().setHSL((120 * (1 - ratio)) / 360, 0.8, 0.5)
 }
 
-/** 
- * Computes heading at index based on path.
- */
 const calculateHeading = (path: any[], index: number): number => {
   if (path.length < 2) return 0
   let dx: number, dy: number
@@ -67,54 +110,74 @@ const calculateHeading = (path: any[], index: number): number => {
   return Math.atan2(dy, dx)
 }
 
-/**
- * Creates the 3D robot mesh from hull vertices.
- */
 const updateRobotModel = () => {
   robotGroup.clear()
   if (!layers.showRobot || telemetryStore.robot.value.length < 3) return
 
   const hull = telemetryStore.robot.value
-  const gadget = telemetryStore.cleaningGadget.value
   
-  // 1. Robot Body (Extruded Hull)
+  // 1. Calculate Centroid (Geometric Center)
+  let cx = 0, cy = 0
+  hull.forEach(p => { cx += p[0]; cy += p[1] })
+  cx /= hull.length; cy /= hull.length
+
+  // 2. Robot Body (Extruded hull, recentered on Centroid)
   const shape = new THREE.Shape()
   hull.forEach((p, i) => {
-    if (i === 0) shape.moveTo(p[0], p[1])
-    else shape.lineTo(p[0], p[1])
+    // Subtract centroid to anchor the center of mass at (0, 0, 0)
+    const rx = p[0] - cx
+    const ry = p[1] - cy
+    if (i === 0) shape.moveTo(rx, ry)
+    else shape.lineTo(rx, ry)
   })
-  
-  const extrudeSettings = { depth: 0.3, bevelEnabled: false }
-  const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
-  const material = new THREE.MeshPhongMaterial({ color: 0xe67e22, transparent: true, opacity: 0.9 })
-  const mesh = new THREE.Mesh(geometry, material)
-  
-  // Align shape (XY) to world (XZ). Extrude depth becomes height.
+
+  const extrudeSettings = { depth: 0.25, bevelEnabled: false }
+  const mesh = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(shape, extrudeSettings),
+    new THREE.MeshPhongMaterial({ color: 0xe67e22, transparent: true, opacity: 0.4 })
+  )
   mesh.rotation.x = -Math.PI / 2
   robotGroup.add(mesh)
 
-  // 2. Cleaning Attachment (Decorative)
+  // 3. Cleaning Gadget (Thick Bar under the robot)
+  const gadget = telemetryStore.cleaningGadget.value
   if (gadget.length >= 2) {
-    const gadgetLineGeom = new THREE.BufferGeometry().setFromPoints(
-      gadget.map(p => new THREE.Vector3(p[0], 0.35, -p[1]))
-    )
-    const gadgetMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 })
-    robotGroup.add(new THREE.Line(gadgetLineGeom, gadgetMat))
+    const p1 = gadget[0]
+    const p2 = gadget[1]
+    const dx = p2[0] - p1[0]
+    const dy = p2[1] - p1[1]
+    const length = Math.sqrt(dx * dx + dy * dy)
+    const angle = Math.atan2(dy, dx)
+
+    const barGeom = new THREE.PlaneGeometry(length, 0.08)
+    const barMesh = new THREE.Mesh(barGeom, new THREE.MeshPhongMaterial({ 
+      color: 0xfbc02d,  // Safety Yellow
+      emissive: 0xfbc02d,
+      emissiveIntensity: 0.2
+    }))
+    
+    const midX = (p1[0] + p2[0]) / 2 - cx
+    const midY = (p1[1] + p2[1]) / 2 - cy
+    barMesh.position.set(midX, 0.08, -midY) // Raised to 0.08m
+    barMesh.rotation.x = -Math.PI / 2
+    barMesh.rotation.z = angle
+    robotGroup.add(barMesh)
   }
+
+  // 4. Facing Arrow (Originating from COM)
+  const dir = new THREE.Vector3(1, 0, 0)
+  const origin = new THREE.Vector3(0, 0.3, 0)
+  const length = 0.5
+  robotGroup.add(new THREE.ArrowHelper(dir, origin, length, 0xffffff, 0.15, 0.1))
 }
 
-/** 
- * Updates the robot position/rotation based on the playback state index.
- */
 const updateRobotPose = () => {
   const path = telemetryStore.path.value
   if (path.length === 0) return
-  
   const index = liveViewStore.state.playback.currentPathIndex
   const pt = path[index]
   const heading = calculateHeading(path, index)
-  
-  robotGroup.position.copy(toVector3(pt, 0.02)) // Sits slightly above ground
+  robotGroup.position.copy(toVector3(pt, 0.02))
   robotGroup.rotation.y = heading
 }
 
@@ -128,12 +191,14 @@ const updateGeometry = () => {
   
   if (path.length === 0) return
 
+  // Grid visibility
+  if (gridHelper) gridHelper.visible = layers.showGrid
+
   // Path Line
   if (layers.showPath) {
     const points = path.map(p => toVector3(p, 0.05))
     const geometry = new THREE.BufferGeometry().setFromPoints(points)
-    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x444444 }))
-    pathGroup.add(line)
+    pathGroup.add(new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x444444 })))
   }
 
   // Waypoints (Spheres)
@@ -163,7 +228,6 @@ const updateGeometry = () => {
   updateRobotModel()
   updateRobotPose()
 
-  // Auto-focus logic
   const center = getPathCenter(path)
   controls.target.copy(center)
   if (camera.position.length() < 2) camera.position.set(center.x, 10, center.z + 8)
@@ -189,9 +253,11 @@ const initThree = () => {
   
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
-  scene.add(new THREE.GridHelper(100, 100, 0x222222, 0x111111))
+
+  gridHelper = new THREE.GridHelper(100, 100, 0x222222, 0x111111)
+  scene.add(gridHelper)
+
   scene.add(new THREE.AmbientLight(0xffffff, 1.0))
-  
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5)
   directionalLight.position.set(10, 20, 10)
   scene.add(directionalLight)
@@ -201,14 +267,20 @@ const initThree = () => {
   updateGeometry()
 }
 
-onMounted(() => nextTick(() => { initThree(); window.addEventListener('resize', () => {
-  if (!containerRef.value) return
-  camera.aspect = containerRef.value.clientWidth / containerRef.value.clientHeight
-  camera.updateProjectionMatrix()
-  renderer.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
-}) }))
+onMounted(() => nextTick(() => {
+  initThree();
+  window.addEventListener('resize', () => {
+    if (!containerRef.value) return
+    camera.aspect = containerRef.value.clientWidth / containerRef.value.clientHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
+  })
+}))
 
-onUnmounted(() => { if (animationFrameId) cancelAnimationFrame(animationFrameId); renderer?.dispose() })
+onUnmounted(() => {
+  if (animationFrameId) cancelAnimationFrame(animationFrameId)
+  renderer?.dispose()
+})
 
 watch(() => telemetryStore.path.value, () => updateGeometry(), { deep: true })
 watch(() => liveViewStore.state.playback.currentPathIndex, () => updateRobotPose())
@@ -217,23 +289,45 @@ watch(() => layers, () => updateGeometry(), { deep: true })
 </script>
 
 <template>
-  <div class="live-view-container" ref="containerRef">
+  <div class="live-view-container" ref="containerRef" @mousemove="onMouseMove">
 
-    <!-- ── Overlay Controls ── -->
+    <!-- ── Overlay Controls (Menu) ── -->
     <div class="view-overlay-controls top-right">
-      <IconButton 
-        :src="layersIcon" 
-        :width="18" 
-        title="Toggle Robot" 
-        @click="layers.showRobot = !layers.showRobot"
-        :variant="layers.showRobot ? 'primary' : 'secondary'"
-      />
-      <IconButton 
-        :src="maximizeIcon" 
-        :width="18" 
-        title="Fullscreen" 
-        variant="primary" 
-      />
+      <div class="button-group-vertical">
+        <IconButton :src="areaChartIcon" :width="18" title="Toggle Area" @click="layers.showArea = !layers.showArea"
+          :variant="layers.showArea ? 'primary' : 'secondary'" />
+        <IconButton :src="pathIcon" :width="18" title="Toggle Path" @click="layers.showPath = !layers.showPath"
+          :variant="layers.showPath ? 'primary' : 'secondary'" />
+        <IconButton :src="dataPointsIcon" :width="18" title="Toggle Waypoints"
+          @click="layers.showPoints = !layers.showPoints" :variant="layers.showPoints ? 'primary' : 'secondary'" />
+        <IconButton :src="robotIcon" :width="18" title="Toggle Robot" @click="layers.showRobot = !layers.showRobot"
+          :variant="layers.showRobot ? 'primary' : 'secondary'" />
+        <IconButton :src="layersIcon" :width="18" title="Toggle Grid" @click="layers.showGrid = !layers.showGrid"
+          :variant="layers.showGrid ? 'primary' : 'secondary'" />
+      </div>
+      <IconButton :src="maximizeIcon" :width="18" title="Fullscreen" variant="primary" />
+    </div>
+
+    <!-- ── Coordinate Meter (Hover HUD) ── -->
+    <div v-if="hoverCoords.active && liveViewStore.state.isLoaded" class="coordinate-meter">
+      <div class="meter-item">
+        <span class="meter-label">X</span>
+        <span class="meter-value">{{ hoverCoords.x.toFixed(2) }}<small>m</small></span>
+      </div>
+      <div class="meter-divider"></div>
+      <div class="meter-item">
+        <span class="meter-label">Y</span>
+        <span class="meter-value">{{ hoverCoords.y.toFixed(2) }}<small>m</small></span>
+      </div>
+    </div>
+
+    <!-- ── Visual Legend (Layers) ── -->
+    <div v-if="liveViewStore.state.isLoaded" class="visual-legend">
+      <div class="legend-header">Layers</div>
+      <div class="legend-item"><span class="color-swatch robot"></span> Robot Model</div>
+      <div class="legend-item"><span class="color-swatch path"></span> Trajectory Path</div>
+      <div class="legend-item"><span class="color-swatch area"></span> Swept Area</div>
+      <div class="legend-item"><span class="color-swatch tool"></span> Cleaning Tool</div>
     </div>
 
     <!-- ── Curvature Legend ── -->
@@ -249,14 +343,17 @@ watch(() => layers, () => updateGeometry(), { deep: true })
       </div>
     </div>
 
+    <!-- ── Contextual HUD ── -->
     <div v-if="liveViewStore.state.isLoaded" class="navigation-hint">
-       🖱️ Left: Rotate | Right: Pan | Scroll: Zoom
+       <div><strong>Left:</strong> Rotate</div>
+       <div><strong>Right:</strong> Pan</div>
+       <div><strong>Scroll:</strong> Zoom</div>
     </div>
 
     <div v-if="!liveViewStore.state.isLoaded" class="placeholder-overlay">
       <div class="placeholder-content">
         <h3>[ 3D ENGINE READY ]</h3>
-        <p>Upload telemetry file to visualize robot pose.</p>
+        <p>Telemetry required for interactive visualization.</p>
       </div>
     </div>
 
@@ -275,27 +372,137 @@ watch(() => layers, () => updateGeometry(), { deep: true })
 .view-overlay-controls {
   position: absolute;
   z-index: 10;
-  top: 1rem;
-  right: 1rem;
+  top: 1.5rem;
+  right: 1.5rem;
   display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.button-group-vertical {
+  background: rgba(11, 14, 20, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
+}
+
+.coordinate-meter {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  background: rgba(11, 14, 20, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.meter-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.meter-label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.meter-value {
+  font-size: 1rem;
+  color: #fff;
+  font-weight: 600;
+}
+
+.meter-value small {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.meter-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .navigation-hint {
   position: absolute;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.5);
+  bottom: 14rem;
+  /* Stacked above the curvature legend */
+  right: 2rem;
+  background: rgba(0, 0, 0, 0.6);
   color: var(--text-muted);
   font-size: 0.75rem;
-  padding: 0.4rem 1rem;
-  border-radius: 20px;
+  padding: 0.5rem 1.2rem;
+  border-radius: 30px;
   backdrop-filter: blur(4px);
   pointer-events: none;
   font-family: var(--font-mono);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
+
+.visual-legend {
+  position: absolute;
+  bottom: 2rem;
+  left: 1.5rem;
+  background: rgba(11, 14, 20, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 0.8rem 1.2rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 10;
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-secondary);
+}
+
+.visual-legend .legend-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.2rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.8rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+.color-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.color-swatch.robot { background-color: #e67e22; }
+.color-swatch.path { background-color: #444444; }
+.color-swatch.area { background-color: rgba(0, 200, 255, 0.5); border: 1px solid #00c8ff; }
+.color-swatch.tool { background-color: #fbc02d; }
 
 .curvature-legend {
   position: absolute;
@@ -335,13 +542,6 @@ watch(() => layers, () => updateGeometry(), { deep: true })
   color: var(--text-muted);
 }
 
-.close-legend {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
 .placeholder-overlay {
   position: absolute;
   inset: 0;
@@ -362,6 +562,5 @@ watch(() => layers, () => updateGeometry(), { deep: true })
   font-size: 1.5rem;
   color: var(--text-primary);
   margin-bottom: 0.5rem;
-  letter-spacing: 1px;
 }
 </style>
