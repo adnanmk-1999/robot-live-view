@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import type { TelemetryData, TelemetryMetrics, PlaybackState } from '../types/telemetry'
 import { calculatePathLength } from '../utils/euclideanDistance'
+import { calculateSweptArea } from '../utils/sweptArea'
 import { telemetryStore } from './telemetryStore'
 
 interface LiveViewState {
@@ -40,6 +41,13 @@ export const useLiveViewStore = () => {
     // Compute path length from telemetryStore's typed accessor
     state.metrics.euclideanPathLengthMeters = calculatePathLength(telemetryStore.path.value)
     console.log(`Path length: ${state.metrics.euclideanPathLengthMeters.toFixed(3)} m`)
+
+    // Compute swept area
+    state.metrics.cleanedAreaSqMeters = calculateSweptArea(
+      telemetryStore.path.value,
+      telemetryStore.robot.value
+    )
+    console.log(`Swept area: ${state.metrics.cleanedAreaSqMeters.toFixed(4)} m²`)
   }
 
   const setMetrics = (length: number, area: number, time: number) => {

@@ -14,6 +14,11 @@ const pathLength = computed(() => {
   return val > 0 ? `${val.toFixed(2)} m` : '-- m'
 })
 
+const cleanedArea = computed(() => {
+  const val = liveViewStore.state.metrics.cleanedAreaSqMeters
+  return val > 0 ? `${val.toFixed(2)} m²` : '-- m²'
+})
+
 const dataPoints = computed(() => telemetryStore.path.value)
 </script>
 
@@ -46,7 +51,7 @@ const dataPoints = computed(() => telemetryStore.path.value)
           <Icon :src="areaChartIcon" :width="24" />
           <span>Cleaned Area</span>
         </div>
-        <div class="item-value">15.3 m²</div>
+        <div class="item-value">{{ cleanedArea }}</div>
       </div>
       <div class="telemetry-item">
         <div class="item-label">
