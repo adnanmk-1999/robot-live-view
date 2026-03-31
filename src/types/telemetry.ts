@@ -42,10 +42,10 @@ export interface PlaybackState {
 export interface TelemetryMetrics {
   /** Sequential array of waypoints representing the robot's target path. */
   smoothedPath: Point2D[];
-  /** Total path length calculated by summing straight-line segments. */
-  euclideanPathLengthMeters: number;
-  /** Path length (reserved for smoothed/spline-based calculations). */
-  pathLengthMeters: number;
+  /** Straight-line distance of the original telemetry path [m]. */
+  rawPathLengthMeters: number;
+  /** Straight-line distance of the smoothed (BSpline) path [m]. */
+  smoothedPathLengthMeters: number;
   /** Total area covered by the robot footprint, accounting for overlaps. */
   cleanedAreaSqMeters: number;
   /** Estimated time to complete the path based on curvature-aware velocity. */

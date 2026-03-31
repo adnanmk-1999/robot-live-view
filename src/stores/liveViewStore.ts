@@ -26,8 +26,8 @@ const state = reactive<LiveViewState>({
   isLoaded: false,
   metrics: {
     smoothedPath: [],
-    euclideanPathLengthMeters: 0,
-    pathLengthMeters: 0,
+    rawPathLengthMeters: 0,
+    smoothedPathLengthMeters: 0,
     cleanedAreaSqMeters: 0,
     traversalTimeSeconds: 0,
     sweptBoundaryRings: [],
@@ -88,7 +88,8 @@ export const useLiveViewStore = () => {
     state.playback.isPlaying = false
 
     // 3. Metric Computation (using Smooth Data)
-    state.metrics.euclideanPathLengthMeters = calculatePathLength(telemetryStore.path.value)
+    state.metrics.rawPathLengthMeters = calculatePathLength(telemetryStore.path.value)
+    state.metrics.smoothedPathLengthMeters = calculatePathLength(smoothedPath)
 
     const sweptResult = calculateSweptArea(
       smoothedPath,
@@ -184,13 +185,31 @@ export const useLiveViewStore = () => {
     state.playback.currentPathIndex = 0
   }
 
+  /** Action: Fully purges the store state. */
+  const clearStore = () => {
+    resetPlayback()
+    state.isLoaded = false
+    
+    // Reset Metrics
+    state.metrics.smoothedPath = []
+    state.metrics.rawPathLengthMeters = 0
+    state.metrics.smoothedPathLengthMeters = 0
+    state.metrics.cleanedAreaSqMeters = 0
+    state.metrics.traversalTimeSeconds = 0
+    state.metrics.sweptBoundaryRings = []
+    state.metrics.velocityProfile = []
+    state.metrics.curvatures = []
+    state.metrics.waypointTimestamps = []
+  }
+
   return {
     state,
     loadTelemetry,
     togglePlayback,
     setPlaybackSpeed,
     updateProgress,
-    resetPlayback
+    resetPlayback,
+    clearStore
   }
 }
 

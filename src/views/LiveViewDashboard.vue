@@ -22,6 +22,7 @@ import pathIcon from '../assets/icons/path.svg'
 import dataPointsIcon from '../assets/icons/data_points.svg'
 import robotIcon from '../assets/logo.png'
 import maximizeIcon from '../assets/icons/maximize.svg'
+import collapseIcon from '../assets/icons/collapse.svg'
 
 import { telemetryStore } from '../stores/telemetryStore'
 import { liveViewStore } from '../stores/liveViewStore'
@@ -30,11 +31,13 @@ import { toVector3, getPathCenter, lerpPoint } from '../utils/threeUtils'
 // ── UI State ────────────────────────────────────────────────────────────────
 
 const containerRef = ref<HTMLDivElement | null>(null)
+const isFullscreen = ref(false)
 const layers = reactive({
   showArea: true,
   showPath: true,
   showPoints: true,
   showRobot: true,
+  showHeading: true,
   showGrid: true,
   showLegend: true
 })
@@ -195,10 +198,12 @@ const updateRobotModel = () => {
   }
 
   // 4. Facing Arrow (Originating from COM)
-  const dir = new THREE.Vector3(1, 0, 0)
-  const origin = new THREE.Vector3(0, 0.3, 0)
-  const length = 0.5
-  robotGroup.add(new THREE.ArrowHelper(dir, origin, length, 0xffffff, 0.15, 0.1))
+  if (layers.showHeading) {
+    const dir = new THREE.Vector3(1, 0, 0)
+    const origin = new THREE.Vector3(0, 0.3, 0)
+    const length = 0.5
+    robotGroup.add(new THREE.ArrowHelper(dir, origin, length, 0xffffff, 0.15, 0.1))
+  }
 }
 
 const updateRobotPose = () => {
@@ -246,8 +251,14 @@ const updateGeometry = () => {
   pathGroup.clear()
   areaGroup.clear()
   pointsGroup.clear()
+  robotGroup.clear()
 
-  if (path.length === 0) return
+  if (path.length === 0) {
+    robotPose.x = 0
+    robotPose.y = 0
+    robotPose.heading = 0
+    return
+  }
 
   // Grid visibility
   if (gridHelper) gridHelper.visible = layers.showGrid
@@ -325,6 +336,23 @@ const initThree = () => {
   updateGeometry()
 }
 
+const toggleFullscreen = async () => {
+  if (!containerRef.value) return
+  try {
+    if (!document.fullscreenElement) {
+      await containerRef.value.requestFullscreen()
+    } else if (document.exitFullscreen) {
+      await document.exitFullscreen()
+    }
+  } catch (err) {
+    console.error('Error toggling fullscreen:', err)
+  }
+}
+
+const handleFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
+
 onMounted(() => nextTick(() => {
   initThree();
   window.addEventListener('resize', () => {
@@ -333,16 +361,20 @@ onMounted(() => nextTick(() => {
     camera.updateProjectionMatrix()
     renderer.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
   })
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
 }))
 
 onUnmounted(() => {
   if (animationFrameId) cancelAnimationFrame(animationFrameId)
   renderer?.dispose()
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 watch(() => liveViewStore.state.metrics.smoothedPath, () => updateGeometry(), { deep: true })
 watch(() => liveViewStore.state.playback.currentPathIndex, () => updateRobotPose())
-watch(() => layers, () => updateGeometry(), { deep: true })
+watch(() => [layers.showArea, layers.showPath, layers.showPoints, layers.showGrid], () => updateGeometry())
+watch(() => [layers.showRobot, layers.showHeading], () => updateRobotModel())
+watch(() => layers.showLegend, () => updateGeometry())
 
 </script>
 
@@ -350,20 +382,22 @@ watch(() => layers, () => updateGeometry(), { deep: true })
   <div class="live-view-container" ref="containerRef" @mousemove="onMouseMove">
 
     <!-- ── Overlay Controls (Menu) ── -->
-    <div class="view-overlay-controls top-right">
-      <div class="button-group-vertical">
-        <IconButton :src="areaChartIcon" :width="18" title="Toggle Area" @click="layers.showArea = !layers.showArea"
+    <div v-if="liveViewStore.state.isLoaded" class="view-overlay-controls top-right" style="align-items: center;">
+      <IconButton :src="isFullscreen ? collapseIcon : maximizeIcon" :width="18"
+        :title="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'" @click="toggleFullscreen" variant="primary" />
+      <div class="button-group-vertical" style="align-items: center;">
+        <div class="controls-label">Toggle Controls</div>
+        <IconButton :src="areaChartIcon" :width="18" title="Sweep Area" @click="layers.showArea = !layers.showArea"
           :variant="layers.showArea ? 'primary' : 'secondary'" />
-        <IconButton :src="pathIcon" :width="18" title="Toggle Path" @click="layers.showPath = !layers.showPath"
+        <IconButton :src="pathIcon" :width="18" title="Smooth Path" @click="layers.showPath = !layers.showPath"
           :variant="layers.showPath ? 'primary' : 'secondary'" />
-        <IconButton :src="dataPointsIcon" :width="18" title="Toggle Waypoints"
-          @click="layers.showPoints = !layers.showPoints" :variant="layers.showPoints ? 'primary' : 'secondary'" />
-        <IconButton :src="robotIcon" :width="18" title="Toggle Robot" @click="layers.showRobot = !layers.showRobot"
+        <IconButton :src="dataPointsIcon" :width="18" title="Waypoints" @click="layers.showPoints = !layers.showPoints"
+          :variant="layers.showPoints ? 'primary' : 'secondary'" />
+        <IconButton :src="robotIcon" :width="18" title="Robot" @click="layers.showRobot = !layers.showRobot"
           :variant="layers.showRobot ? 'primary' : 'secondary'" />
-        <IconButton :src="layersIcon" :width="18" title="Toggle Grid" @click="layers.showGrid = !layers.showGrid"
+        <IconButton :src="layersIcon" :width="18" title="Grid" @click="layers.showGrid = !layers.showGrid"
           :variant="layers.showGrid ? 'primary' : 'secondary'" />
       </div>
-      <IconButton :src="maximizeIcon" :width="18" title="Fullscreen" variant="primary" />
     </div>
 
     <!-- ── Coordinate Meters (HUDs) ── -->
@@ -455,8 +489,18 @@ watch(() => layers, () => updateGeometry(), { deep: true })
   right: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: flex-end;
+}
+
+.controls-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 600;
+  margin-right: 0.25rem;
+  pointer-events: none;
 }
 
 .button-group-vertical {
