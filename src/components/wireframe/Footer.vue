@@ -8,7 +8,7 @@ import squareIcon from '../../assets/icons/square.svg'
 <template>
   <footer class="footer">
     <div class="playback-controls">
-      <IconButton :src="playIcon" :width="18" title="Play" variant="play" />
+      <IconButton :src="playIcon" :width="18" title="Play" />
       <IconButton :src="pauseIcon" :width="18" title="Pause" />
       <IconButton :src="squareIcon" :width="14" title="Stop" />
     </div>
@@ -21,9 +21,8 @@ import squareIcon from '../../assets/icons/square.svg'
       </div>
     </div>
 
-    <div class="speed-control">
-      <button class="speed-btn">1x</button>
-    </div>
+    <IconButton title="Speed" text="1x" variant="primary" />
+
   </footer>
 </template>
 
@@ -93,23 +92,5 @@ import squareIcon from '../../assets/icons/square.svg'
 .speed-control {
   display: flex;
   align-items: center;
-}
-
-.speed-btn {
-  background: var(--surface-light);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.speed-btn:hover {
-  background: var(--surface-hover);
-  border-color: var(--text-muted);
 }
 </style>

@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import PrimaryButton from '../components/button/PrimaryButton.vue'
+import Icon from '../components/Icons/Icon.vue'
+import IconButton from '../components/button/IconButton.vue'
+import uploadSrc from '../assets/icons/upload.svg'
+import closeSrc from '../assets/icons/close.svg'
 </script>
 
 <template>
   <div class="upload-view">
     <div class="upload-container">
       <div class="upload-box">
-        <img src="../assets/icons/upload.svg" class="upload-icon" alt="Upload" />
+        <div class="close-action">
+          <IconButton to="/" :src="closeSrc" :width="16" title="Close" variant="primary"/>
+        </div>
+        <Icon :src="uploadSrc" :width="48" class="upload-icon" />
         <h2>Upload Telemetry Data</h2>
         <p>Drag and drop your robot log files here, or click to browse.</p>
         <PrimaryButton>Browse Files</PrimaryButton>
@@ -41,6 +48,7 @@ import PrimaryButton from '../components/button/PrimaryButton.vue'
   align-items: center;
   gap: 1rem;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .upload-box:hover {
@@ -48,9 +56,13 @@ import PrimaryButton from '../components/button/PrimaryButton.vue'
   background-color: var(--surface-hover);
 }
 
+.close-action {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
 .upload-icon {
-  width: 48px;
-  height: 48px;
   margin-bottom: 1rem;
   transition: transform 0.3s ease;
 }

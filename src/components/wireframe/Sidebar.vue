@@ -9,14 +9,14 @@ import areaChartIcon from '../../assets/icons/area_chart.svg'
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <Icon :src="activityIcon" :width="16" lineColor="var(--accent-color)" />
+      <Icon :src="activityIcon" :width="24" lineColor="var(--accent-color)" />
       <h2>TELEMETRY</h2>
     </div>
 
     <div class="telemetry-list">
       <div class="telemetry-item">
         <div class="item-label">
-          <Icon :src="pathIcon" :width="14" />
+          <Icon :src="pathIcon" :width="24" />
           <span>Path Length</span>
         </div>
         <div class="item-value">54.20 m</div>
@@ -24,7 +24,7 @@ import areaChartIcon from '../../assets/icons/area_chart.svg'
 
       <div class="telemetry-item">
         <div class="item-label">
-          <Icon :src="clockIcon" :width="14" />
+          <Icon :src="clockIcon" :width="24" />
           <span>Trav. Time</span>
         </div>
         <div class="item-value">120.5 s</div>
@@ -32,7 +32,7 @@ import areaChartIcon from '../../assets/icons/area_chart.svg'
 
       <div class="telemetry-item">
         <div class="item-label">
-          <Icon :src="areaChartIcon" :width="14" />
+          <Icon :src="areaChartIcon" :width="24" />
           <span>Cleaned Area</span>
         </div>
         <div class="item-value">15.3 m²</div>

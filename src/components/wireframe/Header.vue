@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Icon from '../Icons/Icon.vue'
+import IconButton from '../button/IconButton.vue'
 import uploadIcon from '../../assets/icons/upload.svg'
 </script>
 
@@ -11,10 +11,14 @@ import uploadIcon from '../../assets/icons/upload.svg'
     </router-link>
 
     <div class="header-actions">
-      <router-link to="/upload" class="action-btn primary" title="Upload Data">
-        <Icon :src="uploadIcon" :width="16" />
-        <span>Upload Path Data</span>
-      </router-link>
+      <IconButton 
+        to="/upload" 
+        :src="uploadIcon" 
+        :width="16" 
+        title="Upload Data" 
+        text="Upload Path Data" 
+        variant="primary" 
+      />
     </div>
   </header>
 </template>
@@ -61,34 +65,6 @@ import uploadIcon from '../../assets/icons/upload.svg'
 }
 
 
-.action-btn:hover .custom-icon {
-  transform: scale(1.1);
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--border-radius-md);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.action-btn.primary {
-  background-color: var(--surface-light);
-  color: var(--text-primary);
-  border-color: var(--border-color);
-}
-
-.action-btn.primary:hover {
-  background-color: var(--surface-hover);
-  border-color: var(--text-muted);
-}
 
 kbd {
   font-family: var(--font-mono);
