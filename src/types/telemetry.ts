@@ -15,6 +15,7 @@ export interface PlaybackState {
 }
 
 export interface TelemetryMetrics {
+  euclideanPathLengthMeters: number;
   pathLengthMeters: number;
   cleanedAreaSqMeters: number;
   traversalTimeSeconds: number;

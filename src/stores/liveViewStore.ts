@@ -1,17 +1,18 @@
 import { reactive } from 'vue'
 import type { TelemetryData, TelemetryMetrics, PlaybackState } from '../types/telemetry'
+import { calculatePathLength } from '../utils/euclideanDistance'
+import { telemetryStore } from './telemetryStore'
 
 interface LiveViewState {
   isLoaded: boolean;
-  data: TelemetryData | null;
   metrics: TelemetryMetrics;
   playback: PlaybackState;
 }
 
 const state = reactive<LiveViewState>({
   isLoaded: false,
-  data: null,
   metrics: {
+    euclideanPathLengthMeters: 0,
     pathLengthMeters: 0,
     cleanedAreaSqMeters: 0,
     traversalTimeSeconds: 0
@@ -27,15 +28,22 @@ const state = reactive<LiveViewState>({
 
 export const useLiveViewStore = () => {
   const loadTelemetry = (jsonData: TelemetryData) => {
-    state.data = jsonData
+    // Delegate raw data to telemetryStore
+    telemetryStore.load(jsonData)
+
     state.isLoaded = true
     state.playback.currentTime = 0
     state.playback.currentPathIndex = 0
     state.playback.progressPercentage = 0
     state.playback.isPlaying = false
+
+    // Compute path length from telemetryStore's typed accessor
+    state.metrics.euclideanPathLengthMeters = calculatePathLength(telemetryStore.path.value)
+    console.log(`Path length: ${state.metrics.euclideanPathLengthMeters.toFixed(3)} m`)
   }
 
   const setMetrics = (length: number, area: number, time: number) => {
+    state.metrics.euclideanPathLengthMeters = length
     state.metrics.pathLengthMeters = length
     state.metrics.cleanedAreaSqMeters = area
     state.metrics.traversalTimeSeconds = time
@@ -52,12 +60,12 @@ export const useLiveViewStore = () => {
 
   const updateProgress = (timeSec: number) => {
     if (!state.isLoaded || state.metrics.traversalTimeSeconds === 0) return
-    
+
     // Clamp to valid range
     const clampedTime = Math.max(0, Math.min(timeSec, state.metrics.traversalTimeSeconds))
     state.playback.currentTime = clampedTime
     state.playback.progressPercentage = (clampedTime / state.metrics.traversalTimeSeconds) * 100
-    
+
     // Auto-pause at end
     if (clampedTime >= state.metrics.traversalTimeSeconds && state.playback.isPlaying) {
       state.playback.isPlaying = false
