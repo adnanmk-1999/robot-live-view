@@ -7,26 +7,10 @@
 import type { Point2D } from '../types/telemetry'
 import { distance } from './euclideanDistance'
 import { computeCurvatures } from './curvature'
+import { targetVelocityFromCurvature } from './targetVelocity'
 
 import { ROBOT_CONFIG } from '../config/robotConfig'
 
-/** Pre-calculated slope for the piecewise linear velocity model. */
-const SLOPE = (ROBOT_CONFIG.V_MAX - ROBOT_CONFIG.V_MIN) / (ROBOT_CONFIG.K_MAX - ROBOT_CONFIG.K_CRIT)
-
-/**
- * Maps curvature κ to a baseline target velocity based on road/track geometry.
- */
-const targetVelocityFromCurvature = (kappa: number): number => {
-  // 1. Piecewise Linear Model (Legacy Constraint)
-  let v: number = ROBOT_CONFIG.V_MAX
-  if (kappa >= ROBOT_CONFIG.K_MAX) v = ROBOT_CONFIG.V_MIN
-  else if (kappa >= ROBOT_CONFIG.K_CRIT) v = ROBOT_CONFIG.V_MAX - SLOPE * (kappa - ROBOT_CONFIG.K_CRIT)
-  
-  // 2. Physical Angular Constraint: v <= omega_max / kappa
-  const vOmega = Math.max(ROBOT_CONFIG.V_MIN, ROBOT_CONFIG.OMEGA_MAX / (kappa || 1e-6))
-  
-  return Math.min(v, vOmega)
-}
 
 /**
  * Encapsulates the results of a time-velocity profile calculation.

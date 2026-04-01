@@ -28,6 +28,7 @@ import closeIcon from '../assets/icons/close.svg'
 import { telemetryStore } from '../stores/telemetryStore'
 import { liveViewStore } from '../stores/liveViewStore'
 import { toVector3, getPathCenter, lerpPoint } from '../utils/threeUtils'
+import { calculateHeadingAtIndex } from '../utils/heading'
 
 // ── UI State ────────────────────────────────────────────────────────────────
 
@@ -107,31 +108,6 @@ const getCurvatureColorHSL = (kappa: number): THREE.Color => {
   return new THREE.Color().setHSL((120 * (1 - ratio)) / 360, 0.8, 0.5)
 }
 
-const calculateHeading = (path: any[], index: number): number => {
-  if (path.length < 2) return 0
-  const i = Math.max(0, Math.min(index, path.length - 2))
-
-  // Walk forward until we find a segment long enough to be meaningful
-  const MIN_SEGMENT_LENGTH = 0.005 // 5mm threshold
-  for (let k = i; k < path.length - 1; k++) {
-    const dx = path[k + 1][0] - path[k][0]
-    const dy = path[k + 1][1] - path[k][1]
-    if (Math.sqrt(dx * dx + dy * dy) >= MIN_SEGMENT_LENGTH) {
-      return Math.atan2(dy, dx)
-    }
-  }
-
-  // Fallback: look backward
-  for (let k = i; k > 0; k--) {
-    const dx = path[k][0] - path[k - 1][0]
-    const dy = path[k][1] - path[k - 1][1]
-    if (Math.sqrt(dx * dx + dy * dy) >= MIN_SEGMENT_LENGTH) {
-      return Math.atan2(dy, dx)
-    }
-  }
-
-  return 0
-}
 
 
 /**
@@ -234,8 +210,8 @@ const updateRobotPose = () => {
   robotGroup.position.copy(toVector3(interpPt, 0.02))
 
   // 3. Interpolate Rotation (Angle Lerp)
-  const h1 = calculateHeading(path, index)
-  const h2 = calculateHeading(path, nextIndex)
+  const h1 = calculateHeadingAtIndex(path, index)
+  const h2 = calculateHeadingAtIndex(path, nextIndex)
   const finalHeading = lerpAngle(h1, h2, t)
   robotGroup.rotation.y = finalHeading
 
