@@ -115,22 +115,7 @@ All arrays denote Cartesian points `[x, y]` mapped in standard **Meters**.
 
 You can launch the Dashboard directly using Native Node tools or run it portably inside Docker.
 
-### Option A: Local Development (Node.js)
-
-Great for making code modifications and testing with Vue's instant Hot Module Replacement (HMR).
-
-**Prerequisites**: Node v18+
-
-```bash
-# 1. Install project dependencies
-npm install
-
-# 2. Start the Vite development server
-npm run dev
-```
-> Navigate to `http://localhost:5173`
-
-### Option B: Docker Deployment (Nginx)
+### Option A: Docker Deployment (Recommended)
 
 Great for quickly booting the exact production image without managing Node versions. This builds the static Vue SPA locally and boots a lightweight Nginx webserver container.
 
@@ -146,6 +131,21 @@ When you are done, shut down the cluster and clean up the network context using:
 ```bash
 docker compose down
 ```
+
+### Option B: Local Development (Node.js)
+
+Great for making code modifications and testing with Vue's instant Hot Module Replacement (HMR).
+
+**Prerequisites**: Node v18+
+
+```bash
+# 1. Install project dependencies
+npm install
+
+# 2. Start the Vite development server
+npm run dev
+```
+> Navigate to `http://localhost:5173`
 
 
 ## <a id="how-to-use"></a>🎮 How to Use the Application
