@@ -13,7 +13,19 @@
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
 </p>
 
----
+
+## 📋 Table of Contents
+
+- [📖 Overview](#overview)
+- [✨ Key Features](#key-features)
+- [📐 Kinematic Velocity Profiling](#kinematic-velocity-profiling)
+- [🤖 Robot Geometry & Coordinate System](#robot-geometry--coordinate-system)
+- [📦 Expected Telemetry Format](#expected-telemetry-format)
+- [🚀 Installation & Usage](#installation--usage)
+- [🎮 How to Use the Application](#how-to-use-the-application)
+- [🛠️ Stack Architecture](#stack-architecture)
+
+
 
 ## 📖 Overview
 
@@ -26,8 +38,6 @@ The dashboard not only animates the robot in 3D space but also mathematically de
 </p>
 
 
-
-
 ## ✨ Key Features
 
 - **🎮 3D WebGL Visualization**: Smooth playback animation of the robot's true orientation using forward-looking angle interpolation.
@@ -37,7 +47,6 @@ The dashboard not only animates the robot in 3D space but also mathematically de
 - **📊 Real-time Analytical Metrics**: Live sidebar readouts of smoothed path length, estimated traversal time, and metric area coverage using the Shoelace formula. 
 - **🐳 Production Ready**: Fully shipped with multi-stage Docker configurations, serving static files efficiently on an Nginx alpine cluster.
 
----
 
 ## 📐 Kinematic Velocity Profiling
 
@@ -59,21 +68,19 @@ $$
 - **Maximum Curvature ($\kappa_{max}$)**: $10 \, m^{-1}$ (Point of minimum velocity)
 - **Velocity Range**: $0.15 \, m/s$ ($v_{min}$) to $1.1 \, m/s$ ($v_{max}$)
 
----
 
 ## 🤖 Robot Geometry & Coordinate System
 
 The application maps local robot coordinates to absolute world coordinates. The diagram below illustrates the relationship between the path, the robot's physical base link, and the cleaning gadget attachment.
 
 <p align="center">
-  <img src="https://via.placeholder.com/800x400?text=Robot+Geometry+and+Coordinate+System+Diagram" alt="Robot Geometry Diagram" />
+  <img src="docs/coordinates.png" alt="Robot Geometry Diagram" />
 </p>
 
 - **Path**: Discrete sets of world coordinates $[x_n, y_n]$.
 - **Robot Base**: A local polygon centered at the base link.
 - **Cleaning Gadget**: An offset tool footprint attached to the robot.
 
----
 
 ## 📦 Expected Telemetry Format
 
@@ -103,7 +110,6 @@ All arrays denote Cartesian points `[x, y]` mapped in standard **Meters**.
 }
 ```
 
----
 
 ## 🚀 Installation & Usage
 
@@ -141,7 +147,6 @@ When you are done, shut down the cluster and clean up the network context using:
 docker compose down
 ```
 
----
 
 ## 🎮 How to Use the Application
 
@@ -178,7 +183,6 @@ The dashboard provides a suite of toggle controls that let you customize what yo
 
 ![Toggle Controls](docs/controls.gif)
 
----
 
 ## 🛠️ Stack Architecture
 
