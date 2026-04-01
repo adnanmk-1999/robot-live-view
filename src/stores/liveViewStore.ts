@@ -72,8 +72,8 @@ export const useLiveViewStore = () => {
     // 1. Core Ingestion
     telemetryStore.load(jsonData)
 
-    // 2. Pre-process: Path Smoothing to remove high-frequency noise
-    // Using a window of 3 to remove jagged edges while preserving shape
+    // 2. Pre-process: Path Smoothing using a weighted moving average.
+    // A window of 3 averages each point with its immediate neighbors to remove high-frequency noise.
     const dedupedPath = deduplicatePath(telemetryStore.path.value, 0.005)
     const smoothedPath = smoothPathMetric(dedupedPath, 3)
 
