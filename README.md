@@ -1,7 +1,11 @@
-<div align="center">
   <img src="docs/logo.png" alt="Robot Live View Dashboard Logo" width="100" height="100" style="border-radius: 10px;" />
   <h1>Robot Live View Dashboard</h1>
   <p>A high-fidelity 3D WebGL visualization and kinematics analysis tool for autonomous robotic paths.</p>
+  
+  <a href="https://adnanmk-1999.github.io/robot-live-view/">
+    <img src="https://img.shields.io/badge/Live_Demo-🔴_Online-red?style=for-the-badge&logo=github&logoColor=white" alt="Live Demo" />
+  </a>
+
   <img src="docs/dashboard.png" alt="Robot Live View Dashboard" width="800" style="border-radius: 10px; margin-top: 20px;" />
 </div>
 
@@ -30,6 +34,9 @@
 ## <a id="overview"></a>📖 Overview
 
 The **Robot Live View Dashboard** is an interactive telemetry visualizer built with Vue 3 and Three.js. It allows robotics engineers to upload a raw telemetry JSON file containing a recorded or planned path, and instantly visualize the dynamic movement, physical footprints, and kinematic properties of the robot as it traverses the route.
+
+**Try it now**: [adnanmk-1999.github.io/robot-live-view](https://adnanmk-1999.github.io/robot-live-view/)  
+*(Sample telemetry data available in the [`data/`](./data/) folder to download and test!)*
 
 The dashboard not only animates the robot in 3D space but also mathematically derives important real-world operational metrics—such as curvature, traversal time, and the physical square-meter area cleaned by the robot's attachable gadgets.
 
@@ -156,6 +163,7 @@ Welcome to the Robot Live View Dashboard! Here is a comprehensive guide to under
 When you launch the app, the first step is to load a telemetry configuration.
 - Click on the **Upload JSON** or **Load File** button prominently displayed.
 - Select a valid `.json` telemetry file from your local machine (refer to the **Expected Telemetry Format** section to ensure your file contains the required `path`, `robot`, and `cleaning_gadget` arrays).
+- **Pro Tip**: You can find sample telemetry files in the [`data/`](./data/) folder. Download them to your machine first to try out the dashboard instantly!
 - Once the file is processed, the dashboard will instantaneously render the 3D scene, perform kinematic calculations, and begin animating the robot's trajectory.
 
 ![Upload File](docs/upload.gif)
