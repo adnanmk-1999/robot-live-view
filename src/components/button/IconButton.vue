@@ -73,7 +73,8 @@ defineProps({
 /* Base button: shared by all variants */
 .icon-btn {
   background: transparent;
-  border: 1px solid transparent; /* Transparent border reserves space so layout doesn't shift on hover */
+  border: 1px solid transparent;
+  /* Transparent border reserves space so layout doesn't shift on hover */
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -84,7 +85,8 @@ defineProps({
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  text-decoration: none; /* Removes underline when rendered as RouterLink */
+  text-decoration: none;
+  /* Removes underline when rendered as RouterLink */
   transition: all 0.2s ease;
 }
 
@@ -104,7 +106,8 @@ defineProps({
 
 /* Micro-animation: icon scales up slightly on hover via the child component's class */
 .icon-btn:hover :deep(.custom-icon) {
-  transform: scale(1.1); /* :deep() pierces the scoped boundary to reach Icon's img */
+  transform: scale(1.1);
+  /* :deep() pierces the scoped boundary to reach Icon's img */
 }
 
 /* Primary Variant — bordered surface style used in Header and upload close button */
@@ -117,5 +120,18 @@ defineProps({
 .icon-btn.primary:hover {
   background-color: var(--surface-hover);
   border-color: var(--text-muted);
+}
+
+/* Danger Variant — Reddish tint for destructive actions */
+.icon-btn.danger {
+  color: #db534a;
+  /* Material Red 400 */
+  background-color: rgb(255, 46, 46);
+}
+
+.icon-btn.danger:hover {
+  background-color: rgba(239, 83, 80, 0.1);
+  border-color: rgba(239, 83, 80, 0.4);
+  color: #f44336;
 }
 </style>

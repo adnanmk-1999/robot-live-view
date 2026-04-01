@@ -45,13 +45,13 @@ const sizeStr = computed(() => {
 /* Square icon — width and height are both driven by the `sizeStr` computed */
 .custom-icon {
   display: inline-block;
-  vertical-align: middle;   /* Aligns icon baseline with surrounding text */
+  vertical-align: middle;
+  /* Aligns icon baseline with surrounding text */
   width: v-bind(sizeStr);
   height: v-bind(sizeStr);
-  /* Note: img tags cannot natively inherit 'color' into typical flat SVGs
-     without CSS filters or inline SVG injection */
   color: v-bind('props.lineColor');
-  object-fit: contain;      /* Preserves aspect ratio without cropping */
+  object-fit: contain;
+  /* Preserves aspect ratio without cropping */
   transition: all 0.2s ease;
 }
 </style>

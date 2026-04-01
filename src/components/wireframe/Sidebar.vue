@@ -24,11 +24,18 @@ import areaChartIcon from '../../assets/icons/area_chart.svg'
 import dataPointsIcon from '../../assets/icons/data_points.svg'
 
 /**
- * Formats the cumulative Euclidean path length.
- * Returns '-- m' before data is loaded (value is 0).
+ * Formats the raw telemetry path length.
  */
-const pathLength = computed(() => {
-  const val = liveViewStore.state.metrics.euclideanPathLengthMeters
+const rawPathLength = computed(() => {
+  const val = liveViewStore.state.metrics.rawPathLengthMeters
+  return val > 0 ? `${val.toFixed(2)} m` : '-- m'
+})
+
+/**
+ * Formats the smoothed (B-Spline) path length.
+ */
+const smoothedPathLength = computed(() => {
+  const val = liveViewStore.state.metrics.smoothedPathLengthMeters
   return val > 0 ? `${val.toFixed(2)} m` : '-- m'
 })
 
@@ -68,13 +75,22 @@ const dataPoints = computed(() => telemetryStore.path.value)
     <!-- ── Metric list ── -->
     <div class="telemetry-list">
 
-      <!-- Euclidean path length — sum of all sequential segment distances -->
+      <!-- Raw telemetry path length -->
       <div class="telemetry-item">
         <div class="item-label">
           <Icon :src="pathIcon" :width="24" />
-          <span>Euclidean Length</span>
+          <span>Raw Path Length</span>
         </div>
-        <div class="item-value">{{ pathLength }}</div>
+        <div class="item-value">{{ rawPathLength }}</div>
+      </div>
+
+      <!-- Smoothed trajectory length (B-Spline) -->
+      <div class="telemetry-item">
+        <div class="item-label">
+          <Icon :src="pathIcon" :width="24" />
+          <span>Smoothed Length</span>
+        </div>
+        <div class="item-value">{{ smoothedPathLength }}</div>
       </div>
 
       <!-- Curvature-adjusted traversal time using piecewise velocity model -->

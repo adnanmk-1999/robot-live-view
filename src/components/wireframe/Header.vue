@@ -6,8 +6,26 @@
   - Header actions: "Upload Path Data" button (RouterLink to '/upload')
 -->
 <script setup lang="ts">
+import { ref } from 'vue'
 import IconButton from '../button/IconButton.vue'
+import ConfirmModal from '../modals/ConfirmModal.vue'
 import uploadIcon from '../../assets/icons/upload.svg'
+import deleteIcon from '../../assets/icons/delete.svg'
+
+import { telemetryStore } from '../../stores/telemetryStore'
+import { liveViewStore } from '../../stores/liveViewStore'
+
+const isConfirmModalOpen = ref(false)
+
+const clearAllStores = () => {
+  isConfirmModalOpen.value = true
+}
+
+const handleConfirmDelete = () => {
+  telemetryStore.clear()
+  liveViewStore.clearStore()
+  isConfirmModalOpen.value = false
+}
 </script>
 
 <template>
@@ -20,10 +38,25 @@ import uploadIcon from '../../assets/icons/upload.svg'
 
     <!-- Right-side action buttons -->
     <div class="header-actions">
+      <!-- Delete button: visible only when data is loaded -->
+      <IconButton v-if="telemetryStore.state.isLoaded" :src="deleteIcon" :width="16" title="Clear All Data"
+        variant="danger" @click="clearAllStores" />
+
       <!-- Upload button: primary variant, routes to /upload -->
       <IconButton to="/upload" :src="uploadIcon" :width="16" title="Upload Data" text="Upload Path Data"
         variant="primary" />
     </div>
+
+    <!-- Confirmation Modal for Deletion -->
+    <ConfirmModal 
+      :show="isConfirmModalOpen" 
+      title="Delete Telemetry Data?" 
+      message="This will permanently purge the currently loaded path and all its associated analytical metrics. Are you sure?"
+      confirm-text="Delete Data"
+      is-danger
+      @confirm="handleConfirmDelete"
+      @cancel="isConfirmModalOpen = false"
+    />
   </header>
 </template>
 
@@ -47,6 +80,7 @@ import uploadIcon from '../../assets/icons/upload.svg'
   color: var(--text-primary);
   transition: opacity 0.2s;
 }
+
 .logo:hover {
   opacity: 0.8;
 }
