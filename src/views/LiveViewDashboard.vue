@@ -28,7 +28,6 @@ import closeIcon from '../assets/icons/close.svg'
 import { telemetryStore } from '../stores/telemetryStore'
 import { liveViewStore } from '../stores/liveViewStore'
 import { toVector3, getPathCenter, lerpPoint } from '../utils/threeUtils'
-import { calculateHeadingAtIndex } from '../utils/heading'
 
 // ── UI State ────────────────────────────────────────────────────────────────
 
@@ -184,19 +183,18 @@ const updateRobotModel = () => {
 }
 
 const updateRobotPose = () => {
-  const path = liveViewStore.state.metrics.smoothedPath
-  const ts = liveViewStore.state.metrics.waypointTimestamps
-  if (path.length < 2 || ts.length < 2) return
+  const profile = liveViewStore.state.metrics.robotProfile
+  if (profile.length < 2) return
 
   const time = liveViewStore.state.playback.currentTime
   const index = liveViewStore.state.playback.currentPathIndex
+  const nextIndex = Math.min(index + 1, profile.length - 1)
 
   // 1. Calculate interpolation factor 't' between waypoints
   let t = 0
-  const nextIndex = Math.min(index + 1, path.length - 1)
-  if (index < path.length - 1) {
-    const t0 = ts[index]
-    const t1 = ts[nextIndex]
+  if (index < profile.length - 1) {
+    const t0 = profile[index].timestampSec
+    const t1 = profile[nextIndex].timestampSec
     const dt = t1 - t0
     if (dt > 1e-6) {
       t = Math.max(0, Math.min(1, (time - t0) / dt))
@@ -204,14 +202,12 @@ const updateRobotPose = () => {
   }
 
   // 2. Interpolate Position
-  const p1 = path[index]
-  const p2 = path[nextIndex]
-  const interpPt = lerpPoint(p1, p2, t)
+  const interpPt = lerpPoint(profile[index].position, profile[nextIndex].position, t)
   robotGroup.position.copy(toVector3(interpPt, 0.02))
 
-  // 3. Interpolate Rotation (Angle Lerp)
-  const h1 = calculateHeadingAtIndex(path, index)
-  const h2 = calculateHeadingAtIndex(path, nextIndex)
+  // 3. Interpolate Rotation using pre-baked headings (no recalculation)
+  const h1 = profile[index].headingRad
+  const h2 = profile[nextIndex].headingRad
   const finalHeading = lerpAngle(h1, h2, t)
   robotGroup.rotation.y = finalHeading
 
@@ -250,10 +246,9 @@ const updateGeometry = () => {
   // Waypoints (Spheres)
   if (layers.showPoints) {
     const sphereGeom = new THREE.SphereGeometry(0.04, 8, 8)
-    path.forEach((pt, i) => {
-      const kappa = metrics.curvatures[i] || 0
-      const mesh = new THREE.Mesh(sphereGeom, new THREE.MeshBasicMaterial({ color: getCurvatureColorHSL(kappa) }))
-      mesh.position.copy(toVector3(pt, 0.05))
+    metrics.robotProfile.forEach((wp) => {
+      const mesh = new THREE.Mesh(sphereGeom, new THREE.MeshBasicMaterial({ color: getCurvatureColorHSL(wp.curvature) }))
+      mesh.position.copy(toVector3(wp.position, 0.05))
       pointsGroup.add(mesh)
     })
   }

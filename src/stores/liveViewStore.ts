@@ -4,13 +4,14 @@
  */
 
 import { reactive } from 'vue'
-import type { TelemetryData, TelemetryMetrics } from '../types/telemetry'
+import type { TelemetryData, TelemetryMetrics, RobotProfile } from '../types/telemetry'
 import type { PlaybackState } from '../types/playback'
 import { calculatePathLength } from '../utils/euclideanDistance'
 import { calculateSweptArea } from '../utils/sweptArea'
 import { calculateTraversalTime } from '../utils/traversalTime'
 import { telemetryStore } from './telemetryStore'
 import { smoothPathMetric, deduplicatePath } from '../utils/pathSmoothing'
+import { calculateHeadingAtIndex } from '../utils/heading'
 
 /** Internal state definition for derived telemetry analysis. */
 interface LiveViewState {
@@ -32,9 +33,7 @@ const state = reactive<LiveViewState>({
     cleanedAreaSqMeters: 0,
     traversalTimeSeconds: 0,
     sweptBoundaryRings: [],
-    velocityProfile: [],
-    curvatures: [],
-    waypointTimestamps: []
+    robotProfile: []
   },
   playback: {
     isPlaying: false,
@@ -58,12 +57,10 @@ export const useLiveViewStore = () => {
    * Finds the highest index i such that timestamps[i] <= time.
    */
   const findPathIndex = (timeSec: number): number => {
-    const ts = state.metrics.waypointTimestamps
-    if (!ts.length) return 0
-    
-    // Simple linear scan for now; small enough datasets (100-1000 pts)
-    for (let i = ts.length - 1; i >= 0; i--) {
-      if (ts[i] <= timeSec) return i
+    const profile = state.metrics.robotProfile
+    if (!profile.length) return 0
+    for (let i = profile.length - 1; i >= 0; i--) {
+      if (profile[i].timestampSec <= timeSec) return i
     }
     return 0
   }
@@ -102,9 +99,16 @@ export const useLiveViewStore = () => {
 
     const traversalResult = calculateTraversalTime(smoothedPath)
     state.metrics.traversalTimeSeconds = traversalResult.totalTimeSeconds
-    state.metrics.velocityProfile = traversalResult.velocityProfile
-    state.metrics.curvatures = traversalResult.curvatures
-    state.metrics.waypointTimestamps = traversalResult.waypointTimestamps
+
+    // Build the pre-computed RobotProfile: one entry per waypoint
+    const robotProfile: RobotProfile = smoothedPath.map((position, i) => ({
+      position,
+      headingRad: calculateHeadingAtIndex(smoothedPath, i),
+      velocityMs: traversalResult.velocityProfile[i] ?? traversalResult.velocityProfile[traversalResult.velocityProfile.length - 1] ?? 0,
+      curvature: traversalResult.curvatures[i] ?? 0,
+      timestampSec: traversalResult.waypointTimestamps[i] ?? 0
+    }))
+    state.metrics.robotProfile = robotProfile
   }
 
   /**
@@ -198,9 +202,7 @@ export const useLiveViewStore = () => {
     state.metrics.cleanedAreaSqMeters = 0
     state.metrics.traversalTimeSeconds = 0
     state.metrics.sweptBoundaryRings = []
-    state.metrics.velocityProfile = []
-    state.metrics.curvatures = []
-    state.metrics.waypointTimestamps = []
+    state.metrics.robotProfile = []
   }
 
   return {

@@ -21,6 +21,29 @@ export interface TelemetryData {
 }
 
 /**
+ * A pre-computed snapshot of the robot's state at a single waypoint.
+ * Computed once at load time to avoid repeating expensive derivations on each frame.
+ */
+export interface WaypointProfile {
+  /** World coordinates [x, y] of this waypoint. */
+  position: Point2D;
+  /** Pre-calculated heading angle in radians (−PI to PI). */
+  headingRad: number;
+  /** Target velocity at this waypoint [m/s], respecting curvature and hardware limits. */
+  velocityMs: number;
+  /** Path curvature κ at this waypoint [1/m]. */
+  curvature: number;
+  /** Cumulative elapsed time from path start to this waypoint [s]. */
+  timestampSec: number;
+}
+
+/**
+ * A dense per-waypoint profile of the entire planned trajectory.
+ * Each entry corresponds 1:1 with a smoothed path waypoint.
+ */
+export type RobotProfile = WaypointProfile[];
+
+/**
  * Derived analytical metrics computed from the raw telemetry.
  */
 export interface TelemetryMetrics {
@@ -36,10 +59,6 @@ export interface TelemetryMetrics {
   traversalTimeSeconds: number;
   /** Outer boundary coordinates of the unified swept area polygon(s). */
   sweptBoundaryRings: Point2D[][];
-  /** Array of velocities mapped to each segment of the path [m/s]. */
-  velocityProfile: number[];
-  /** Array of curvature values mapped to each path waypoint [1/m]. */
-  curvatures: number[];
-  /** Cumulative timestamps at each path waypoint [s]. */
-  waypointTimestamps: number[];
+  /** Pre-computed per-waypoint robot state profile. */
+  robotProfile: RobotProfile;
 }
