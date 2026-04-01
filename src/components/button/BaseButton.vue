@@ -16,11 +16,6 @@ defineProps({
     type: String,
     default: 'primary'
   },
-  /** Whether the button is currently in a loading state */
-  loading: {
-    type: Boolean,
-    default: false
-  },
   /** Whether the button is interactive */
   disabled: {
     type: Boolean,
@@ -34,12 +29,11 @@ defineEmits(['click'])
 <template>
   <button 
     class="base-btn" 
-    :class="[variant, { 'is-loading': loading }]" 
-    :disabled="disabled || loading"
+    :class="variant" 
+    :disabled="disabled"
     @click="$emit('click')"
   >
-    <span v-if="!loading" class="btn-text">{{ text }}</span>
-    <span v-else class="loader"></span>
+    <span class="btn-text">{{ text }}</span>
   </button>
 </template>
 
@@ -96,17 +90,4 @@ defineEmits(['click'])
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
 }
 
-/* Loading state spinner */
-.loader {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 </style>

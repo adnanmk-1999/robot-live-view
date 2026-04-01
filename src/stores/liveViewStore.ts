@@ -4,7 +4,8 @@
  */
 
 import { reactive } from 'vue'
-import type { TelemetryData, TelemetryMetrics, PlaybackState } from '../types/telemetry'
+import type { TelemetryData, TelemetryMetrics } from '../types/telemetry'
+import type { PlaybackState } from '../types/playback'
 import { calculatePathLength } from '../utils/euclideanDistance'
 import { calculateSweptArea } from '../utils/sweptArea'
 import { calculateTraversalTime } from '../utils/traversalTime'
