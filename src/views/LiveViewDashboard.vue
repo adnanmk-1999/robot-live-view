@@ -256,9 +256,25 @@ const updateGeometry = () => {
   // Swept Area
   if (layers.showArea) {
     const material = new THREE.MeshBasicMaterial({ color: 0x00c8ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide })
-    metrics.sweptBoundaryRings.forEach(ring => {
+    metrics.sweptPolygons.forEach(poly => {
       const shape = new THREE.Shape()
-      ring.forEach((p, i) => { if (i === 0) shape.moveTo(p[0], p[1]); else shape.lineTo(p[0], p[1]) })
+      
+      // 1. Construct Outer Boundary
+      poly.outer.forEach((p, i) => { 
+        if (i === 0) shape.moveTo(p[0], p[1]); 
+        else shape.lineTo(p[0], p[1]); 
+      })
+
+      // 2. Construct Inner Holes (Windows)
+      poly.holes.forEach(hole => {
+        const holePath = new THREE.Path()
+        hole.forEach((p, i) => {
+          if (i === 0) holePath.moveTo(p[0], p[1]);
+          else holePath.lineTo(p[0], p[1]);
+        })
+        shape.holes.push(holePath)
+      })
+
       const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material)
       mesh.rotation.x = -Math.PI / 2
       mesh.position.y = 0.01

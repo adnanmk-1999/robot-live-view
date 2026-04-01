@@ -5,7 +5,7 @@
 
 import * as turf from '@turf/turf'
 import type { Feature, Polygon, MultiPolygon, Position } from 'geojson'
-import type { Point2D } from '../types/telemetry'
+import type { Point2D, SweptPolygon } from '../types/telemetry'
 import { computePathHeadings } from './heading'
 import { transformPoint } from './coordinateTransform'
 
@@ -15,19 +15,15 @@ import { transformPoint } from './coordinateTransform'
 export interface SweptAreaResult {
   /** Total swept area in m² (overlapping regions counted once). */
   areaSqMeters: number
-  /** Outer boundary ring(s) of the unified swept polygon in world coordinates. */
-  boundaryRings: Point2D[][]
+  /** Hierarchical polygons (outer rings and holes) of the unified swept area. */
+  polygons: SweptPolygon[]
 }
 
-
-
 /**
- * Calculates the metric area of a closed polygon ring using the Shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula).
- * 
- * Formula: Area = 0.5 * |sum(x_i * y_{i+1} - x_{i+1} * y_i)|
- * 
+ * Calculates the metric area of a closed polygon ring using the Shoelace formula.
+ * Area = 0.5 * |sum(x_i * y_{i+1} - x_{i+1} * y_i)|
  * @param ring - Array of positions [x, y] representing a CLOSED polygon ring.
- * @returns The calculated area in square meters.
+ * @returns Positive area in square meters.
  */
 const shoelaceArea = (ring: Position[]): number => {
   let area = 0
@@ -40,39 +36,43 @@ const shoelaceArea = (ring: Position[]): number => {
 
 /**
  * Extracts and flattens result metrics from a GeoJSON feature (Polygon or MultiPolygon).
- * 
- * This function handles the conversion from GeoJSON nested coordinate structures 
- * to a flat array of boundary rings and calculates the total cumulative area.
- * 
- * Implementation Details:
- * 1. For each polygon, only the first coordinate ring (the outer boundary) is extracted.
- * 2. GeoJSON 'closed' rings (where the last point equals the first) are transformed into 
- *    vertex arrays by slicing off the redundant last coordinate.
- * 3. Total area is the sum of all individual polygon areas using the Shoelace formula.
- * 
- * @param feature - A GeoJSON feature containing calculated swept area geometry.
- * @returns A SweptAreaResult containing total area and normalized boundary rings.
+ * Correctly handles holes by subtracting their areas from the total.
  */
 const extractResult = (
   feature: Feature<Polygon | MultiPolygon>
 ): SweptAreaResult => {
   const geom = feature.geometry
-  const boundaryRings: Point2D[][] = []
+  const sweptPolygons: SweptPolygon[] = []
   let totalArea = 0
 
-  if (geom.type === 'Polygon') {
-    const outerRing = geom.coordinates[0] // first ring is the outer boundary
-    totalArea = shoelaceArea(outerRing)
-    boundaryRings.push(outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D)) // remove last point to avoid duplication
-  } else if (geom.type === 'MultiPolygon') {
-    for (const poly of geom.coordinates) {
-      const outerRing = poly[0] // first ring is the outer boundary
-      totalArea += shoelaceArea(outerRing)
-      boundaryRings.push(outerRing.slice(0, -1).map(([x, y]) => [x, y] as Point2D)) // remove last point to avoid duplication
+  const processPolygon = (coordinates: Position[][]) => {
+    if (coordinates.length === 0) return
+
+    // 1. Process Outer Ring
+    const outerRaw = coordinates[0]
+    const outerArea = shoelaceArea(outerRaw)
+    const outer: Point2D[] = outerRaw.slice(0, -1).map(([x, y]) => [x, y] as Point2D)
+    
+    // 2. Process Holes
+    const holes: Point2D[][] = []
+    let holesArea = 0
+    for (let i = 1; i < coordinates.length; i++) {
+      const holeRaw = coordinates[i]
+      holesArea += shoelaceArea(holeRaw)
+      holes.push(holeRaw.slice(0, -1).map(([x, y]) => [x, y] as Point2D))
     }
+
+    totalArea += (outerArea - holesArea)
+    sweptPolygons.push({ outer, holes })
   }
 
-  return { areaSqMeters: totalArea, boundaryRings }
+  if (geom.type === 'Polygon') {
+    processPolygon(geom.coordinates)
+  } else if (geom.type === 'MultiPolygon') {
+    geom.coordinates.forEach(polyCoords => processPolygon(polyCoords))
+  }
+
+  return { areaSqMeters: totalArea, polygons: sweptPolygons }
 }
 
 /**
@@ -92,7 +92,7 @@ export const calculateSweptArea = (
   robotHull: Point2D[],
   cleaningPad: Point2D[]
 ): SweptAreaResult => {
-  const empty: SweptAreaResult = { areaSqMeters: 0, boundaryRings: [] }
+  const empty: SweptAreaResult = { areaSqMeters: 0, polygons: [] }
   if (path.length < 2 || cleaningPad.length < 2) return empty
 
   const headings = computePathHeadings(path)
