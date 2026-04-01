@@ -1,3 +1,4 @@
+<div align="center">  
   <img src="docs/logo.png" alt="Robot Live View Dashboard Logo" width="100" height="100" style="border-radius: 10px;" />
   <h1>Robot Live View Dashboard</h1>
   <p>A high-fidelity 3D WebGL visualization and kinematics analysis tool for autonomous robotic paths.</p>
