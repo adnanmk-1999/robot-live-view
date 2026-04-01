@@ -192,7 +192,8 @@ const dataPoints = computed(() => telemetryStore.path.value)
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums; /* Prevents layout shift as digits change */
+  font-variant-numeric: tabular-nums;
+  /* Prevents layout shift as digits change */
   font-family: var(--font-mono);
   text-shadow: 0 0 10px var(--accent-glow);
   text-align: right;
@@ -204,7 +205,8 @@ const dataPoints = computed(() => telemetryStore.path.value)
   flex-direction: column;
   gap: 0.75rem;
   flex: 1;
-  min-height: 0; /* Required for overflow-y to work inside a flex parent */
+  min-height: 0;
+  /* Required for overflow-y to work inside a flex parent */
 }
 
 .section-header {
@@ -252,6 +254,7 @@ const dataPoints = computed(() => telemetryStore.path.value)
   font-size: 0.72rem;
   transition: background 0.15s;
 }
+
 .data-point-row:hover {
   background: var(--surface-hover);
 }
