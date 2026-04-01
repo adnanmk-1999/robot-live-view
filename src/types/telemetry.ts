@@ -46,6 +46,13 @@ export type RobotProfile = WaypointProfile[];
 /**
  * Derived analytical metrics computed from the raw telemetry.
  */
+export interface SweptPolygon {
+  /** The outer boundary of the polygon in world coordinates. */
+  outer: Point2D[];
+  /** Internal 'holes' or islands within the polygon. */
+  holes: Point2D[][];
+}
+
 export interface TelemetryMetrics {
   /** Sequential array of waypoints representing the robot's target path. */
   smoothedPath: Point2D[];
@@ -57,8 +64,8 @@ export interface TelemetryMetrics {
   cleanedAreaSqMeters: number;
   /** Estimated time to complete the path based on curvature-aware velocity. */
   traversalTimeSeconds: number;
-  /** Outer boundary coordinates of the unified swept area polygon(s). */
-  sweptBoundaryRings: Point2D[][];
+  /** Hierarchical coordinates of unified swept area polygons (with holes). */
+  sweptPolygons: SweptPolygon[];
   /** Pre-computed per-waypoint robot state profile. */
   robotProfile: RobotProfile;
 }

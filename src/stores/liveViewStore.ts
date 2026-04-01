@@ -32,7 +32,7 @@ const state = reactive<LiveViewState>({
     smoothedPathLengthMeters: 0,
     cleanedAreaSqMeters: 0,
     traversalTimeSeconds: 0,
-    sweptBoundaryRings: [],
+    sweptPolygons: [],
     robotProfile: []
   },
   playback: {
@@ -95,7 +95,7 @@ export const useLiveViewStore = () => {
       telemetryStore.cleaningGadget.value
     )
     state.metrics.cleanedAreaSqMeters = sweptResult.areaSqMeters
-    state.metrics.sweptBoundaryRings = sweptResult.boundaryRings
+    state.metrics.sweptPolygons = sweptResult.polygons
 
     const traversalResult = calculateTraversalTime(smoothedPath)
     state.metrics.traversalTimeSeconds = traversalResult.totalTimeSeconds
@@ -201,7 +201,7 @@ export const useLiveViewStore = () => {
     state.metrics.smoothedPathLengthMeters = 0
     state.metrics.cleanedAreaSqMeters = 0
     state.metrics.traversalTimeSeconds = 0
-    state.metrics.sweptBoundaryRings = []
+    state.metrics.sweptPolygons = []
     state.metrics.robotProfile = []
   }
 
