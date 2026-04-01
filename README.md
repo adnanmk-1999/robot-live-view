@@ -19,15 +19,15 @@
 - [📖 Overview](#overview)
 - [✨ Key Features](#key-features)
 - [📐 Kinematic Velocity Profiling](#kinematic-velocity-profiling)
-- [🤖 Robot Geometry & Coordinate System](#robot-geometry--coordinate-system)
-- [📦 Expected Telemetry Format](#expected-telemetry-format)
-- [🚀 Installation & Usage](#installation--usage)
-- [🎮 How to Use the Application](#how-to-use-the-application)
+- [🤖 Robot Geometry & Coordinate System](#robot-geometry-system)
+- [📦 Expected Telemetry Format](#telemetry-format)
+- [🚀 Installation & Usage](#installation-usage)
+- [🎮 How to Use the Application](#how-to-use)
 - [🛠️ Stack Architecture](#stack-architecture)
 
 
 
-## 📖 Overview
+## <a id="overview"></a>📖 Overview
 
 The **Robot Live View Dashboard** is an interactive telemetry visualizer built with Vue 3 and Three.js. It allows robotics engineers to upload a raw telemetry JSON file containing a recorded or planned path, and instantly visualize the dynamic movement, physical footprints, and kinematic properties of the robot as it traverses the route.
 
@@ -38,7 +38,7 @@ The dashboard not only animates the robot in 3D space but also mathematically de
 </p>
 
 
-## ✨ Key Features
+## <a id="key-features"></a>✨ Key Features
 
 - **🎮 3D WebGL Visualization**: Smooth playback animation of the robot's true orientation using forward-looking angle interpolation.
 - **📈 Advanced Kinematic Profiling**: Automatically calculates target traversal velocity along a path, accounting for hardware limits.
@@ -48,7 +48,7 @@ The dashboard not only animates the robot in 3D space but also mathematically de
 - **🐳 Production Ready**: Fully shipped with multi-stage Docker configurations, serving static files efficiently on an Nginx alpine cluster.
 
 
-## 📐 Kinematic Velocity Profiling
+## <a id="kinematic-velocity-profiling"></a>📐 Kinematic Velocity Profiling
 
 To ensure realistic traversal, the dashboard calculates a dynamic velocity profile based on path curvature $\kappa$. The robot maintains maximum speed on straights and decelerates linearly as it enters sharper curves to maintain stability.
 
@@ -69,7 +69,7 @@ $$
 - **Velocity Range**: $0.15 \, m/s$ ($v_{min}$) to $1.1 \, m/s$ ($v_{max}$)
 
 
-## 🤖 Robot Geometry & Coordinate System
+## <a id="robot-geometry-system"></a>🤖 Robot Geometry & Coordinate System
 
 The application maps local robot coordinates to absolute world coordinates. The diagram below illustrates the relationship between the path, the robot's physical base link, and the cleaning gadget attachment.
 
@@ -82,7 +82,7 @@ The application maps local robot coordinates to absolute world coordinates. The 
 - **Cleaning Gadget**: An offset tool footprint attached to the robot.
 
 
-## 📦 Expected Telemetry Format
+## <a id="telemetry-format"></a>📦 Expected Telemetry Format
 
 The Application accepts `.json` files representing the robot's geometry and traversal route. 
 
@@ -111,7 +111,7 @@ All arrays denote Cartesian points `[x, y]` mapped in standard **Meters**.
 ```
 
 
-## 🚀 Installation & Usage
+## <a id="installation-usage"></a>🚀 Installation & Usage
 
 You can launch the Dashboard directly using Native Node tools or run it portably inside Docker.
 
@@ -148,7 +148,7 @@ docker compose down
 ```
 
 
-## 🎮 How to Use the Application
+## <a id="how-to-use"></a>🎮 How to Use the Application
 
 Welcome to the Robot Live View Dashboard! Here is a comprehensive guide to understanding the interface and operating the application.
 
@@ -184,7 +184,7 @@ The dashboard provides a suite of toggle controls that let you customize what yo
 ![Toggle Controls](docs/controls.gif)
 
 
-## 🛠️ Stack Architecture
+## <a id="stack-architecture"></a>🛠️ Stack Architecture
 
 - **Core**: Vue 3 (Composition API) + TypeScript
 - **State Management**: Pinia (Reactive Store Singletons)
