@@ -1,9 +1,9 @@
 <div align="center">  
   <img src="docs/logo.png" alt="Robot Live View Dashboard Logo" width="100" height="100" style="border-radius: 10px;" />
-  <h1>Robot Live View Dashboard</h1>
+  <h1>Robot Live View</h1>
   <p>A high-fidelity 3D WebGL visualization and kinematics analysis tool for autonomous robotic paths.</p>
   
-  <a href="https://adnanmk-1999.github.io/robot-live-view/">
+  <a href="https://adnanmk-1999.github.io/robot-live-view/" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/Live_Demo-🔴_Online-red?style=for-the-badge&logo=github&logoColor=white" alt="Live Demo" />
   </a>
 
