@@ -3,7 +3,7 @@
  * @description Vue Router configuration defining application routes and navigation history.
  */
 
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import LiveViewDashboard from '../views/LiveViewDashboard.vue'
 
 /**
@@ -11,8 +11,8 @@ import LiveViewDashboard from '../views/LiveViewDashboard.vue'
  * Maps URL paths to Vue components.
  */
 const router = createRouter({
-  /** Uses HTML5 History API for clean URLs (no hash). */
-  history: createWebHistory(import.meta.env.BASE_URL),
+  /** Uses Hash mode for GitHub Pages compatibility. */
+  history: createWebHashHistory(),
   
   routes: [
     {
