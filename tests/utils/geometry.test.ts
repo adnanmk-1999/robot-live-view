@@ -38,7 +38,7 @@ describe('sweptArea', () => {
     
     const result = calculateSweptArea(path, hull, pad)
     expect(result.areaSqMeters).toBe(0)
-    expect(result.boundaryRings).toEqual([])
+    expect(result.polygons).toEqual([])
   })
 
   it('should calculate the swept area of a straight line', () => {
@@ -57,7 +57,8 @@ describe('sweptArea', () => {
     // The quad vertices should compute to exactly 10 square meters area.
     expect(result.areaSqMeters).toBeGreaterThan(0)
     expect(result.areaSqMeters).toBeCloseTo(10)
-    expect(result.boundaryRings.length).toBeGreaterThan(0)
+    expect(result.polygons.length).toBeGreaterThan(0)
+    expect(result.polygons[0].outer.length).toBeGreaterThan(0)
   })
   
   it('should gracefully handle overlapping geometries without throwing', () => {
